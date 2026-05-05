@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacific Palisades Rebuild Navigator</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="parcels_data.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  background: #f5f5f5; color: #212121;
+}
+
+/* ── Loading overlay ── */
+#loading-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(255,255,255,0.94);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+#loading-overlay.hidden { display: none; }
+.spinner {
+  width: 44px; height: 44px;
+  border: 4px solid #e0e0e0; border-top-color: #1565c0;
+  border-radius: 50%; animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: #555; }
+
+/* ── Header ── */
+#header {
+  background: #1a237e; color: #fff;
+  padding: 10px 20px; flex-shrink: 0;
+  display: flex; align-items: baseline; gap: 14px;
+}
+#header h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+#header .sub { font-size: 12px; color: #9fa8da; }
+
+/* ── Stats bar ── */
+#stats-bar {
+  display: flex; background: #fff;
+  border-bottom: 1px solid #e0e0e0; flex-shrink: 0;
+}
+.stat {
+  flex: 1; padding: 9px 10px; text-align: center;
+  border-right: 1px solid #eeeeee;
+}
+.stat:last-child { border-right: none; }
+.stat-value { font-size: 22px; font-weight: 700; color: #1a237e; line-height: 1.15; }
+.stat-label { font-size: 11px; color: #757575; margin-top: 1px; line-height: 1.3; }
+
+/* ── Tabs ── */
+#tabs {
+  display: flex; background: #fff;
+  border-bottom: 2px solid #e0e0e0; flex-shrink: 0;
+  padding: 0 12px; overflow-x: auto;
+}
+.tab {
+  padding: 9px 15px; font-size: 13px; font-weight: 500; color: #616161;
+  cursor: pointer; border-bottom: 3px solid transparent;
+  margin-bottom: -2px; white-space: nowrap; transition: color 0.12s; user-select: none;
+}
+.tab:hover { color: #1a237e; }
+.tab.active { color: #1a237e; border-bottom-color: #1a237e; font-weight: 600; }
+
+/* ── Main area ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+#map { flex: 1; }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 300px; background: #fff; border-left: 1px solid #e0e0e0;
+  overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
+}
+#sb-default {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 24px; text-align: center;
+}
+#sb-default p { font-size: 13px; color: #9e9e9e; line-height: 1.5; }
+
+#sb-hdr {
+  padding: 13px 14px 8px; display: flex; align-items: flex-start; gap: 6px;
+  border-bottom: 1px solid #f0f0f0; position: sticky; top: 0;
+  background: #fff; z-index: 1; flex-shrink: 0;
+}
+#sb-hdr-text { flex: 1; min-width: 0; }
+#sb-hdr h2 {
+  font-size: 13px; font-weight: 700; color: #1a237e; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.apn-line { font-size: 11px; color: #9e9e9e; margin-top: 2px; }
+#sb-use-badge { margin-top: 4px; display: inline-block; }
+#close-btn {
+  background: none; border: none; cursor: pointer;
+  color: #9e9e9e; font-size: 20px; line-height: 1; padding: 0; flex-shrink: 0;
+}
+#close-btn:hover { color: #333; }
+#sb-body { padding: 10px 14px 16px; }
+
+/* ── Detail rows ── */
+.detail-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5;
+}
+.detail-row:last-child { border-bottom: none; }
+.dl { color: #757575; font-size: 12px; }
+
+/* ── Badges ── */
+.badge {
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600;
+}
+.bg-green  { background: #e8f5e9; color: #1D9E75; }
+.bg-teal   { background: #e0f2f1; color: #00695c; }
+.bg-amber  { background: #fff8e1; color: #BA7517; }
+.bg-orange { background: #fff3e0; color: #D85A30; }
+.bg-red    { background: #ffebee; color: #E24B4A; }
+.bg-blue   { background: #e3f2fd; color: #1565c0; }
+.bg-gray   { background: #f5f5f5; color: #616161; }
+.bg-purple { background: #f3e5f5; color: #6a1b9a; }
+
+/* ── School map markers ── */
+.school-marker {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px; font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.85);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.32);
+  cursor: pointer;
+}
+.school-pulse {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--sc, #888);
+  animation: sch-pulse 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes sch-pulse {
+  0%   { transform: scale(0.8); opacity: 0.75; }
+  70%  { transform: scale(1.65); opacity: 0; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+
+/* ── Schools sidebar list ── */
+.school-list-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; font-size: 12px; font-weight: 700; color: #333;
+  cursor: pointer; border-bottom: 1px solid #f0f0f0;
+  background: #fafafa; position: sticky; top: 0; user-select: none;
+}
+.school-list-hdr:hover { background: #f0f0f0; }
+.school-chevron {
+  font-size: 11px; color: #9e9e9e; transition: transform 0.18s;
+  display: inline-block;
+}
+.school-chevron.collapsed { transform: rotate(-90deg); }
+.school-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; cursor: pointer; border-bottom: 1px solid #f5f5f5;
+}
+.school-row:hover { background: #f8f8f8; }
+.school-row.active { background: #e3f2fd; }
+.school-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.school-name { flex: 1; font-size: 12px; color: #333; line-height: 1.3; }
+.school-group-hdr {
+  font-size: 10px; font-weight: 700; color: #9e9e9e;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 8px 14px 4px; background: #f9f9f9;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* ── School detail ── */
+.sch-op-pill {
+  display: inline-block; padding: 5px 14px; border-radius: 20px;
+  font-size: 12px; font-weight: 700;
+}
+.sch-footnote {
+  font-size: 11px; color: #9e9e9e; font-style: italic; line-height: 1.5;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0f0f0;
+}
+
+/* ── Progress bar ── */
+.infra-bar-bg { height: 7px; background: #eeeeee; border-radius: 4px; overflow: hidden; }
+.infra-bar-fill { height: 7px; border-radius: 4px; }
+
+/* ── Permit pipeline ── */
+.p-wrap { margin: 10px 0 12px; }
+.p-row1 { display: flex; align-items: center; }
+.p-row2 { display: flex; margin-top: 5px; }
+.p-node {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+.p-done   { background: #1D9E75; color: #fff; }
+.p-active { background: #1565c0; color: #fff; box-shadow: 0 0 0 3px rgba(21,101,192,0.22); }
+.p-future { background: #f5f5f5; color: #bdbdbd; border: 1.5px solid #e0e0e0; font-size: 9px; }
+.p-conn { flex: 1; height: 2px; min-width: 6px; }
+.p-conn-done   { background: #1D9E75; }
+.p-conn-future { background: #e0e0e0; }
+.p-lcell { width: 22px; flex-shrink: 0; }
+.p-lcell span {
+  display: block; width: 50px; margin-left: -14px;
+  font-size: 9px; color: #9e9e9e; text-align: center;
+  line-height: 1.3; white-space: pre-wrap;
+}
+.p-lbl-on { color: #1565c0 !important; font-weight: 700; }
+.p-lsp { flex: 1; }
+.p-days {
+  font-size: 11px; color: #616161; text-align: center;
+  margin-top: 8px; background: #f8f8f8; border-radius: 4px; padding: 5px 8px;
+}
+
+/* ── Infrastructure service rows ── */
+.svc-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 0; border-bottom: 1px solid #f5f5f5;
+}
+.svc-row:last-child { border-bottom: none; }
+.svc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.svc-green { background: #1D9E75; }
+.svc-amber { background: #BA7517; }
+.svc-red   { background: #E24B4A; }
+.svc-name  { flex: 1; font-size: 13px; color: #444; }
+.svc-txt   { font-size: 11px; font-weight: 600; }
+.svc-txt-green { color: #1D9E75; }
+.svc-txt-amber { color: #BA7517; }
+.svc-txt-red   { color: #E24B4A; }
+
+/* ── Investor warning ── */
+.inv-warn {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 6px;
+  padding: 8px 10px; margin-bottom: 10px;
+  font-size: 12px; color: #e65100; line-height: 1.4;
+}
+.inv-warn-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Declare intent button ── */
+.declare-btn {
+  display: block; width: 100%; margin-top: 14px;
+  padding: 12px; background: #1565c0; color: #fff;
+  border: none; border-radius: 8px; font-size: 14px;
+  font-weight: 600; cursor: pointer; text-align: center;
+  box-shadow: 0 2px 8px rgba(21,101,192,0.25);
+}
+.declare-btn:hover { background: #1976d2; }
+
+/* ── Section divider ── */
+.sb-divider { height: 1px; background: #f0f0f0; margin: 6px 0 10px; }
+
+/* ── Section label ── */
+.sb-section-label {
+  font-size: 10px; font-weight: 700; color: #9e9e9e;
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+}
+
+/* ── Leaflet legend ── */
+.legend-panel {
+  background: #fff; padding: 10px 13px; border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18); font-size: 12px; min-width: 160px;
+}
+.legend-title { font-weight: 700; color: #212121; margin-bottom: 7px; font-size: 12px; }
+.legend-row { display: flex; align-items: center; gap: 7px; margin: 4px 0; color: #555; }
+.legend-dot {
+  width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.14);
+}
+
+/* ── Declaration modal ── */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.52); z-index: 3000;
+  align-items: center; justify-content: center; padding: 16px;
+}
+#modal-overlay.open { display: flex; }
+#modal {
+  background: #fff; border-radius: 12px;
+  width: 440px; max-width: 100%; max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.28); overflow: hidden;
+}
+#modal-hdr {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 18px 20px 14px; border-bottom: 1px solid #eeeeee; flex-shrink: 0;
+}
+#modal-hdr > div { flex: 1; }
+#modal-hdr h3 { font-size: 16px; font-weight: 700; color: #1a237e; margin-bottom: 3px; }
+#modal-parcel-addr { font-size: 12px; color: #9e9e9e; }
+#modal-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 22px; color: #9e9e9e; line-height: 1; padding: 0; flex-shrink: 0;
+}
+#modal-close:hover { color: #333; }
+#declare-form { overflow-y: auto; padding: 16px 20px 0; flex: 1; }
+.form-group { margin-bottom: 17px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.form-optional { font-weight: 400; color: #aaa; }
+.radio-col { display: flex; flex-direction: column; gap: 7px; }
+.radio-row { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.radio-opt {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #444; cursor: pointer; user-select: none;
+}
+.radio-opt input[type="radio"] {
+  accent-color: #1565c0; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
+}
+#comment-field {
+  width: 100%; border: 1px solid #e0e0e0; border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; font-family: inherit; resize: none; color: #333;
+}
+#comment-field:focus {
+  outline: none; border-color: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21,101,192,0.14);
+}
+#char-count { font-size: 11px; color: #aaa; text-align: right; margin-top: 3px; }
+#modal-footer { padding: 14px 20px; border-top: 1px solid #eeeeee; flex-shrink: 0; }
+#modal-submit {
+  width: 100%; padding: 10px; background: #1565c0; color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+#modal-submit:hover { background: #1976d2; }
+#modal-confirm { padding: 36px 28px; text-align: center; flex: 1; }
+.confirm-check {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: #e8f5e9; color: #1D9E75; font-size: 26px;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+}
+#confirm-msg { font-size: 15px; color: #333; line-height: 1.6; margin-bottom: 24px; }
+#confirm-close {
+  padding: 9px 32px; background: #1565c0; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#confirm-close:hover { background: #1976d2; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Loading parcel data…</p>
+</div>
+
+<div id="header">
+  <h1>Pacific Palisades Rebuild Navigator</h1>
+  <span class="sub">Post-wildfire recovery dashboard</span>
+</div>
+
+<div id="stats-bar">
+  <div class="stat"><div class="stat-value" id="s1">—</div><div class="stat-label" id="l1">—</div></div>
+  <div class="stat"><div class="stat-value" id="s2">—</div><div class="stat-label" id="l2">—</div></div>
+  <div class="stat"><div class="stat-value" id="s3">—</div><div class="stat-label" id="l3">—</div></div>
+  <div class="stat"><div class="stat-value" id="s4">—</div><div class="stat-label" id="l4">—</div></div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" data-tab="permit">Permitting &amp; construction</div>
+  <div class="tab" data-tab="intent">Rebuild intent</div>
+  <div class="tab" data-tab="infra">Infrastructure &amp; services</div>
+  <div class="tab" data-tab="investor">Investor activity</div>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="sidebar">
+    <div id="sb-default">
+      <p>Click any parcel to see details</p>
+    </div>
+    <div id="sb-hdr" style="display:none;">
+      <div id="sb-hdr-text">
+        <h2 id="sb-addr">—</h2>
+        <div class="apn-line" id="sb-meta">—</div>
+        <span id="sb-use-badge" class="badge bg-blue" style="margin-top:5px;"></span>
+      </div>
+      <button id="close-btn" title="Close">×</button>
+    </div>
+    <div id="sb-body"></div>
+  </div>
+</div>
+
+<!-- Declaration modal -->
+<div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal">
+    <div id="modal-hdr">
+      <div>
+        <h3 id="modal-title">Declare your intention</h3>
+        <div id="modal-parcel-addr"></div>
+      </div>
+      <button id="modal-close" aria-label="Close">×</button>
+    </div>
+
+    <form id="declare-form" novalidate>
+      <div class="form-group">
+        <span class="form-label">What do you intend to do with this property?</span>
+        <div class="radio-col">
+          <label class="radio-opt"><input type="radio" name="intent" value="rebuild" required> Planning to rebuild</label>
+          <label class="radio-opt"><input type="radio" name="intent" value="undecided"> Undecided</label>
+          <label class="radio-opt"><input type="radio" name="intent" value="sold"> Sold / not returning</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">Residence type</span>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="res_type" value="primary"> Primary home</label>
+          <label class="radio-opt"><input type="radio" name="res_type" value="second_home"> Second home</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">Owner age bracket</span>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="age" value="under_45"> Under 45</label>
+          <label class="radio-opt"><input type="radio" name="age" value="45_to_60"> 45–60</label>
+          <label class="radio-opt"><input type="radio" name="age" value="over_60"> Over 60</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">School-age children in household?</span>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="kids" value="yes"> Yes</label>
+          <label class="radio-opt"><input type="radio" name="kids" value="no"> No</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">Insurance situation</span>
+        <div class="radio-col">
+          <label class="radio-opt"><input type="radio" name="insurance" value="fully_covered"> Fully covered</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="underinsured"> Underinsured</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="fair_plan"> On FAIR Plan</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="none"> No insurance</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="comment-field">
+          Comments <span class="form-optional">(optional · 140 char max)</span>
+        </label>
+        <textarea id="comment-field" name="comment" maxlength="140" rows="3"
+          placeholder="Share any context about your situation…"></textarea>
+        <div id="char-count">0 / 140</div>
+      </div>
+    </form>
+
+    <div id="modal-footer">
+      <button type="submit" form="declare-form" id="modal-submit">Submit declaration</button>
+    </div>
+
+    <div id="modal-confirm" style="display:none;">
+      <div class="confirm-check">✓</div>
+      <p id="confirm-msg"></p>
+      <button id="confirm-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="schools_data.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+
+// ─── Seed function for deterministic fake data ────────────────────────────────
+function seed(apn) {
+  const s = apn ? String(apn) : '';
+  let h = 0;
+  for (const c of s) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0;
+  return Math.abs(h);
+}
+
+// ─── Color constants ──────────────────────────────────────────────────────────
+const PERMIT_COLORS = {
+  complete:           '#1D9E75',
+  under_construction: '#BA7517',
+  approved:           '#378ADD',
+  under_review:       '#D85A30',
+  no_application:     '#E24B4A',
+};
+const INTENT_COLORS = {
+  rebuild:   '#1D9E75',
+  undecided: '#BA7517',
+  sold:      '#E24B4A',
+};
+const NULL_COLOR       = '#888780';
+const INDIV_COLOR      = '#1D9E75';
+const SOLD_INDIV_COLOR = '#E8A838';
+const LLC_COLOR        = '#E24B4A';
+const INFRA_GREEN    = '#1D9E75';
+const INFRA_AMBER    = '#BA7517';
+const INFRA_RED      = '#E24B4A';
+
+function getInfraColor(apn) {
+  if (apn.startsWith('4404')) return INFRA_GREEN;
+  if (apn.startsWith('4405') || apn.startsWith('4403')) return INFRA_AMBER;
+  return INFRA_RED;
+}
+
+function getParcelColor(props) {
+  const apn = props.APN || '';
+  switch (activeTab) {
+    case 'permit':
+      return PERMIT_COLORS[props.permit_status] || NULL_COLOR;
+    case 'intent':
+      return props.intent ? (INTENT_COLORS[props.intent] || NULL_COLOR) : NULL_COLOR;
+    case 'infra':
+      return getInfraColor(apn);
+    case 'investor':
+      if (props.owner_type === 'sold_developer')  return LLC_COLOR;
+      if (props.owner_type === 'sold_individual') return SOLD_INDIV_COLOR;
+      return INDIV_COLOR;
+    default:
+      return NULL_COLOR;
+  }
+}
+
+// ─── Fake data assignment ─────────────────────────────────────────────────────
+const PERMIT_MAP  = ['no_application','under_review','approved','under_construction','complete'];
+const INSURE_MAP  = ['fully_covered','underinsured','fair_plan','none'];
+const AGE_MAP     = ['under_45','45_to_60','over_60'];
+
+function augment(props) {
+  const apn = String(props.APN || '');
+  const s   = seed(apn);
+  const iv  = s % 10;
+  props.permit_status    = PERMIT_MAP[s % 5];
+  props.intent           = iv <= 1 ? null : iv <= 6 ? 'rebuild' : iv <= 8 ? 'undecided' : 'sold';
+  const ot               = (s >>> 3) % 10;
+  props.owner_type       = ot <= 5 ? 'individual' : ot <= 7 ? 'sold_individual' : 'sold_developer';
+  props.residence_type   = (s % 3) === 0 ? 'second_home' : 'primary';
+  props.insurance_status = INSURE_MAP[s % 4];
+  props.has_kids         = (s % 3) === 0;
+  props.owner_age_bracket= AGE_MAP[s % 3];
+  props.days_in_review   = (s % 90) + 1;
+}
+
+// ─── Map ──────────────────────────────────────────────────────────────────────
+const map = L.map('map', { preferCanvas: true }).setView([34.042, -118.522], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+// Canvas renderer — required for 10k+ polygons without freezing
+const renderer = L.canvas({ padding: 0.5 });
+
+let activeTab      = 'permit';
+let geoLayer       = null;
+let selectedLayer  = null;
+let activeFeature  = null;    // currently-selected feature
+let allProps       = [];      // flat array of all augmented feature.properties
+
+// ─── Data loading ─────────────────────────────────────────────────────────────
+// PARCEL_DATA is pre-loaded from parcels_data.js (included in <head>).
+// No fetch, no server, no file:// issues — double-click index.html works.
+
+function renderParcels(features) {
+  features.forEach(f => augment(f.properties));
+  allProps = features.map(f => f.properties);
+
+  // renderer is declared above — must exist before geoJSON layer is created
+  geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+    renderer,
+    style:         featureStyle,
+    onEachFeature: wireFeature,
+  }).addTo(map);
+
+  updateStats();
+  updateLegend();
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+function loadData() {
+  var features = PARCEL_DATA.features.filter(f =>
+    f.properties.UseType === 'Residential' &&
+    f.properties.SitusAddress &&
+    f.properties.SitusAddress.trim() !== ''
+  );
+  console.log('Parcels loaded:', features.length);
+  renderParcels(features);
+  loadSchools();
+}
+
+// ─── Style & events ───────────────────────────────────────────────────────────
+function featureStyle(feature) {
+  return {
+    color:       '#fff',
+    weight:      0.5,
+    opacity:     0.8,
+    fillColor:   getParcelColor(feature.properties),
+    fillOpacity: 0.6,
+  };
+}
+
+function wireFeature(feature, layer) {
+  layer.on({
+    mouseover(e) {
+      if (e.target === selectedLayer) return;
+      e.target.setStyle({ fillOpacity: 0.85, weight: 1.5 });
+    },
+    mouseout(e) {
+      if (e.target === selectedLayer) return;
+      geoLayer.resetStyle(e.target);
+    },
+    click(e) {
+      L.DomEvent.stopPropagation(e);
+      selectParcel(e.target, feature);
+    },
+  });
+}
+
+function selectParcel(layer, feature) {
+  if (selectedLayer) geoLayer.resetStyle(selectedLayer);
+  selectedLayer = layer;
+  activeFeature = feature;
+  layer.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+  openSidebar(feature.properties);
+}
+
+// Redraw all parcels when tab changes, then re-highlight selection
+function redrawLayer() {
+  if (!geoLayer) return;
+  geoLayer.setStyle(featureStyle);
+  if (selectedLayer) selectedLayer.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+}
+
+// ─── Stats bar ────────────────────────────────────────────────────────────────
+function pct(n, total) { return total > 0 ? Math.round(n / total * 100) : 0; }
+
+function setStats(pairs) {
+  pairs.forEach(([val, lbl], i) => {
+    document.getElementById(`s${i+1}`).textContent = val;
+    document.getElementById(`l${i+1}`).textContent = lbl;
+  });
+}
+
+function updateStats() {
+  const n = allProps.length;
+  for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).style.color = '';
+  switch (activeTab) {
+
+    case 'permit': {
+      const withApp = allProps.filter(p =>
+        ['approved','under_construction','complete'].includes(p.permit_status)).length;
+      const inConst = allProps.filter(p => p.permit_status === 'under_construction').length;
+      const done    = allProps.filter(p => p.permit_status === 'complete').length;
+      setStats([
+        [n.toLocaleString(),           'Residential parcels loaded'],
+        [pct(withApp, n) + '%',        'With permit application'],
+        [pct(inConst, n) + '%',        'Under construction'],
+        [pct(done, n) + '%',           'Permits complete'],
+      ]);
+      break;
+    }
+
+    case 'intent': {
+      const rebuild   = allProps.filter(p => p.intent === 'rebuild').length;
+      const undecided = allProps.filter(p => p.intent === 'undecided').length;
+      const sold      = allProps.filter(p => p.intent === 'sold').length;
+      const nullI     = allProps.filter(p => p.intent === null).length;
+      setStats([
+        [pct(rebuild, n)   + '%', 'Planning to rebuild'],
+        [pct(undecided, n) + '%', 'Undecided'],
+        [pct(sold, n)      + '%', 'Sold or not returning'],
+        [pct(nullI, n)     + '%', 'No declaration'],
+      ]);
+      break;
+    }
+
+    case 'infra': {
+      const operational = schoolFeatures.filter(f => f.properties.operating_status === 'permanent').length;
+      const temporary   = schoolFeatures.filter(f => f.properties.operating_status === 'temporary').length;
+      const destroyed   = schoolFeatures.filter(f => f.properties.fire_damage === 'major').length;
+      const totalSch    = schoolFeatures.length;
+      const opColor     = operational === 0 ? '#E24B4A' : operational < totalSch / 2 ? '#BA7517' : '#1D9E75';
+      setStats([
+        [`${operational} of ${totalSch}`, 'Schools fully operational'],
+        [`${temporary}`,                   'Schools in temporary facilities'],
+        [`${destroyed}`,                   'Schools destroyed'],
+        ['34%',                            'Utilities restored'],
+      ]);
+      document.getElementById('s1').style.color = opColor;
+      break;
+    }
+
+    case 'investor': {
+      const soldDev   = allProps.filter(p => p.owner_type === 'sold_developer').length;
+      const soldIndiv = allProps.filter(p => p.owner_type === 'sold_individual').length;
+      const indiv     = allProps.filter(p => p.owner_type === 'individual').length;
+      setStats([
+        [pct(indiv, n)     + '%', 'Individual owned'],
+        [pct(soldIndiv, n) + '%', 'Sold to individual'],
+        [pct(soldDev, n)   + '%', 'Sold to developer'],
+        ['$2.4M',                  'Est. avg lot price'],
+      ]);
+      break;
+    }
+  }
+}
+
+// ─── Legend ───────────────────────────────────────────────────────────────────
+const LEGEND_DEFS = {
+  permit: {
+    title: 'Permit Status',
+    items: [
+      ['#1D9E75', 'Permit complete'],
+      ['#BA7517', 'Under construction'],
+      ['#378ADD', 'Approved'],
+      ['#D85A30', 'Under review'],
+      ['#E24B4A', 'No application'],
+    ],
+  },
+  intent: {
+    title: 'Rebuild Intent',
+    items: [
+      ['#1D9E75', 'Planning to rebuild'],
+      ['#BA7517', 'Undecided'],
+      ['#E24B4A', 'Sold / not returning'],
+      ['#888780', 'Not yet declared'],
+    ],
+  },
+  infra: {
+    title: 'Infrastructure & Schools',
+    items: [
+      ['#1D9E75', 'Full utilities (APN 4404)'],
+      ['#BA7517', 'Power only (APN 4403/4405)'],
+      ['#E24B4A', 'No utilities'],
+      [null, 'Schools'],
+      ['#BA7517', 'Temporary facilities'],
+      ['#1D9E75', 'Fully operational'],
+    ],
+  },
+  investor: {
+    title: 'Owner Type',
+    items: [
+      ['#1D9E75', 'Individual owner'],
+      ['#E8A838', 'Sold to individual'],
+      ['#E24B4A', 'Sold to developer / LLC'],
+    ],
+  },
+};
+
+const legendCtrl = L.control({ position: 'bottomleft' });
+legendCtrl.onAdd = function() {
+  this._div = L.DomUtil.create('div', 'legend-panel');
+  L.DomEvent.disableClickPropagation(this._div);
+  return this._div;
+};
+legendCtrl.addTo(map);
+
+function updateLegend() {
+  const def = LEGEND_DEFS[activeTab];
+  legendCtrl._div.innerHTML =
+    `<div class="legend-title">${def.title}</div>` +
+    def.items.map(([col, lbl]) => {
+      if (col === null)
+        return `<div style="font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;letter-spacing:0.5px;margin:7px 0 3px;">${lbl}</div>`;
+      return `<div class="legend-row"><div class="legend-dot" style="background:${col}"></div>${lbl}</div>`;
+    }).join('');
+}
+
+// ─── Sidebar helpers ──────────────────────────────────────────────────────────
+const PERMIT_STAGES = [
+  { key: 'no_application',    label: 'No application',    short: 'No app.'  },
+  { key: 'under_review',      label: 'Under review',      short: 'Under\nreview' },
+  { key: 'approved',          label: 'Approved',           short: 'Approved' },
+  { key: 'under_construction',label: 'Under construction', short: 'Const.'   },
+  { key: 'complete',          label: 'Complete',            short: 'Complete' },
+];
+
+function fmt(s) {
+  return String(s || '').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function srow(label, content) {
+  return `<div class="detail-row"><span class="dl">${label}</span>${content}</div>`;
+}
+
+function badge(cls, text) {
+  return `<span class="badge bg-${cls}">${text}</span>`;
+}
+
+function permitBadge(status) {
+  const map = {
+    complete:           'green',
+    under_construction: 'amber',
+    approved:           'blue',
+    under_review:       'orange',
+    no_application:     'red',
+  };
+  return badge(map[status] || 'gray', fmt(status));
+}
+
+function intentBadge(intent) {
+  const map = { rebuild: 'green', undecided: 'amber', sold: 'red' };
+  return badge(map[intent] || 'gray', fmt(intent));
+}
+
+function insureBadge(v) {
+  const map = { fully_covered:'green', underinsured:'amber', fair_plan:'orange', none:'red' };
+  return badge(map[v] || 'gray', fmt(v));
+}
+
+// ─── Sidebar renderers (per tab) ──────────────────────────────────────────────
+function renderPermit(p) {
+  const si   = PERMIT_STAGES.findIndex(s => s.key === p.permit_status);
+  const days = p.days_in_review || 1;
+  let r1 = '', r2 = '';
+  PERMIT_STAGES.forEach((s, i) => {
+    const cls  = i < si ? 'p-done' : i === si ? 'p-active' : 'p-future';
+    const icon = i < si ? '✓' : String(i + 1);
+    if (i > 0) {
+      r1 += `<div class="p-conn ${i <= si ? 'p-conn-done' : 'p-conn-future'}"></div>`;
+      r2 += `<div class="p-lsp"></div>`;
+    }
+    r1 += `<div class="p-node ${cls}">${icon}</div>`;
+    r2 += `<div class="p-lcell"><span${i === si ? ' class="p-lbl-on"' : ''}>${s.short}</span></div>`;
+  });
+  return `
+    <div class="p-wrap">
+      <div class="p-row1">${r1}</div>
+      <div class="p-row2">${r2}</div>
+      <div class="p-days">${days} days in <strong>${PERMIT_STAGES[Math.max(0,si)].label}</strong></div>
+    </div>
+    <div class="sb-divider"></div>
+    ${srow('Permit status', permitBadge(p.permit_status))}
+    ${srow('Permit type',   badge('blue', 'New build'))}
+    ${srow('Owner type',    badge(p.owner_type === 'sold_developer' ? 'red' : p.owner_type === 'sold_individual' ? 'orange' : 'green', fmt(p.owner_type)))}`;
+}
+
+function renderIntent(p) {
+  if (p.intent == null) {
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;padding:28px 12px 16px;gap:14px;text-align:center;">
+        <span class="badge bg-gray" style="font-size:13px;padding:6px 18px;border-radius:20px;">No declaration</span>
+        <p style="font-size:12px;color:#9e9e9e;line-height:1.6;margin:0;max-width:210px;">
+          Help us understand your plans so resources can be directed to this area.
+        </p>
+      </div>
+      <button class="declare-btn" id="open-declare">Declare your intention</button>`;
+  }
+  return `
+    ${srow('Rebuild intent', intentBadge(p.intent))}
+    ${srow('Residence type', badge('gray', fmt(p.residence_type)))}
+    ${srow('Owner age', badge('blue', fmt(p.owner_age_bracket)))}
+    ${srow('Children in household', badge(p.has_kids ? 'blue' : 'gray', p.has_kids ? 'Yes' : 'No'))}
+    ${srow('Insurance', insureBadge(p.insurance_status))}
+    ${p.intent === 'undecided' ? '<button class="declare-btn" id="open-declare" style="margin-top:12px;">Update your intention</button>' : ''}`;
+}
+
+function renderInfra(p) {
+  const apn = String(p.APN || '');
+  const is4404 = apn.startsWith('4404');
+  const is4403or5 = apn.startsWith('4403') || apn.startsWith('4405');
+  const hasPower = is4404 || is4403or5;
+  const hasWater = is4404;
+
+  function svcRow(name, yes) {
+    const cls = yes ? 'svc-green' : 'svc-red';
+    const txt = yes ? 'Restored' : 'Not restored';
+    const tcl = yes ? 'svc-txt-green' : 'svc-txt-red';
+    return `<div class="svc-row">
+      <div class="svc-dot ${cls}"></div>
+      <span class="svc-name">${name}</span>
+      <span class="svc-txt ${tcl}">${txt}</span>
+    </div>`;
+  }
+  return `
+    <div class="sb-section-label">Service status</div>
+    ${svcRow('Power', hasPower)}
+    ${svcRow('Water', hasWater)}
+    ${svcRow('Gas', false)}
+    ${svcRow('Schools', false)}
+    <div class="svc-row">
+      <div class="svc-dot svc-green"></div>
+      <span class="svc-name">Debris cleared</span>
+      <span class="svc-txt svc-txt-green">Yes</span>
+    </div>`;
+}
+
+function renderInvestor(p) {
+  const apn         = String(p.APN || '');
+  const isSoldDev   = p.owner_type === 'sold_developer';
+  const isSoldIndiv = p.owner_type === 'sold_individual';
+  const s           = seed(apn);
+  const priceM      = ((s % 30) + 10) * 0.1;
+  const pctMap      = apn.startsWith('4404') ? 22 : apn.startsWith('4405') ? 38 : 45;
+
+  const ownerCls = isSoldDev ? 'red' : isSoldIndiv ? 'orange' : 'green';
+  const ownerLbl = isSoldDev ? 'Sold — to developer/LLC' : isSoldIndiv ? 'Sold — to individual' : 'Individual owner';
+  const barColor = isSoldDev ? '#E24B4A' : isSoldIndiv ? '#E8A838' : '#BA7517';
+
+  const warn = isSoldDev
+    ? `<div class="inv-warn">
+         <span class="inv-warn-icon">!</span>
+         <span>This parcel is held by an LLC entity, indicating possible speculative acquisition.</span>
+       </div>`
+    : '';
+  return `
+    ${warn}
+    ${srow('Owner type',     badge(ownerCls, ownerLbl))}
+    ${srow('Residence type', badge('gray', fmt(p.residence_type)))}
+    ${srow('Pre-fire value', `<span style="font-weight:700;color:#1a237e;">$${priceM.toFixed(1)}M</span>`)}
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;color:#757575;margin-bottom:5px;">Investor concentration — this area</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="infra-bar-bg" style="flex:1;">
+          <div class="infra-bar-fill" style="width:${pctMap}%;background:${barColor};"></div>
+        </div>
+        <span style="font-size:13px;font-weight:700;color:${barColor};min-width:34px;text-align:right;">${pctMap}%</span>
+      </div>
+    </div>`;
+}
+
+// ─── Sidebar controller ───────────────────────────────────────────────────────
+function openSidebar(props) {
+  activeSchoolProps = null;
+  document.getElementById('sb-default').style.display = 'none';
+  document.getElementById('sb-hdr').style.display      = 'flex';
+
+  document.getElementById('sb-addr').textContent = props.SitusAddress || '(No address)';
+  document.getElementById('sb-meta').textContent = `APN: ${props.APN || '—'}`;
+  const useBadge = document.getElementById('sb-use-badge');
+  useBadge.textContent = props.UseDescription || props.UseType || '';
+
+  const body = document.getElementById('sb-body');
+  switch (activeTab) {
+    case 'permit':   body.innerHTML = renderPermit(props);   break;
+    case 'intent':   body.innerHTML = renderIntent(props);   break;
+    case 'infra':    body.innerHTML = renderInfra(props);    break;
+    case 'investor': body.innerHTML = renderInvestor(props); break;
+  }
+
+  // Wire "Declare" button if present
+  const btn = body.querySelector('#open-declare');
+  if (btn) btn.addEventListener('click', () => openDeclareModal(props));
+}
+
+document.getElementById('close-btn').addEventListener('click', () => {
+  if (selectedLayer) { geoLayer.resetStyle(selectedLayer); selectedLayer = null; }
+  activeFeature = null;
+  activeSchoolProps = null;
+  if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
+  document.getElementById('sb-hdr').style.display  = 'none';
+  document.getElementById('sb-body').innerHTML     = '';
+  updateDefaultPanel();
+});
+
+// ─── Declaration modal ────────────────────────────────────────────────────────
+let modalProps = null;
+
+function openDeclareModal(props) {
+  modalProps = props;
+  document.getElementById('modal-parcel-addr').textContent =
+    `${props.SitusAddress || ''} · APN ${props.APN || ''}`;
+  const form = document.getElementById('declare-form');
+  form.reset();
+  form.style.display = 'block';
+  document.getElementById('modal-confirm').style.display = 'none';
+  document.getElementById('modal-footer').style.display  = 'block';
+  document.getElementById('char-count').textContent      = '0 / 140';
+
+  // Pre-select current intent
+  if (props.intent) {
+    const r = form.querySelector(`input[name="intent"][value="${props.intent}"]`);
+    if (r) r.checked = true;
+  }
+  if (props.has_kids != null) {
+    const r = form.querySelector(`input[name="kids"][value="${props.has_kids ? 'yes' : 'no'}"]`);
+    if (r) r.checked = true;
+  }
+  if (props.insurance_status) {
+    const r = form.querySelector(`input[name="insurance"][value="${props.insurance_status}"]`);
+    if (r) r.checked = true;
+  }
+
+  document.getElementById('modal-overlay').classList.add('open');
+  const first = form.querySelector('input[type="radio"]');
+  if (first) setTimeout(() => first.focus(), 60);
+}
+
+function closeDeclareModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalProps = null;
+}
+
+document.getElementById('modal-close').addEventListener('click', closeDeclareModal);
+document.getElementById('confirm-close').addEventListener('click', closeDeclareModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeDeclareModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('modal-overlay').classList.contains('open'))
+    closeDeclareModal();
+});
+document.getElementById('comment-field').addEventListener('input', function() {
+  document.getElementById('char-count').textContent = this.value.length + ' / 140';
+});
+
+document.getElementById('declare-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = modalProps;
+  if (!p) return;
+  const form = e.target;
+  const newIntent = form.elements['intent'].value;
+  if (!newIntent) { form.querySelector('input[name="intent"]').focus(); return; }
+
+  // Mutate properties in place (same object is in allProps and the feature)
+  p.intent = newIntent;
+  const kv = form.elements['kids'].value;
+  if (kv) p.has_kids = kv === 'yes';
+  const iv = form.elements['insurance'].value;
+  if (iv) p.insurance_status = iv;
+
+  // Update map color immediately
+  if (selectedLayer && activeFeature && activeFeature.properties === p) {
+    const fillColor = INTENT_COLORS[newIntent] || NULL_COLOR;
+    selectedLayer.setStyle({ fillColor });
+  }
+
+  updateStats();
+
+  // Refresh sidebar if this parcel still active
+  if (activeFeature && activeFeature.properties === p) openSidebar(p);
+
+  // Confirmation copy
+  const prefix = String(p.APN || '').substring(0, 4);
+  const block  = allProps.filter(q => String(q.APN || '').startsWith(prefix));
+  const dec    = block.filter(q => q.intent === 'rebuild' || q.intent === 'sold').length;
+  document.getElementById('confirm-msg').innerHTML =
+    `Recorded. Your neighbors can see that <strong>${dec}</strong> of ` +
+    `<strong>${block.length}</strong> parcels on your block have declared intentions.`;
+  form.style.display = 'none';
+  document.getElementById('modal-footer').style.display = 'none';
+  document.getElementById('modal-confirm').style.display = 'block';
+});
+
+// ─── Schools ─────────────────────────────────────────────────────────────────────────────
+const SCHOOL_OP_LABELS = {
+  temporary: 'Operating in Temporary Facilities',
+  permanent: 'Operating in Permanent Facilities',
+};
+const SCHOOL_OP_COLORS = {
+  temporary: '#BA7517',
+  permanent: '#1D9E75',
+};
+
+function deriveSchoolStatus(school) {
+  const p = school.properties || school;
+  switch (p.fire_damage) {
+    case 'major':
+      p.operating_status    = 'temporary';
+      p.construction_status = 'under_review';
+      p.fire_impact_label   = 'Structure destroyed';
+      p.impact_color        = '#E24B4A';
+      break;
+    case 'moderate':
+      p.operating_status    = 'temporary';
+      p.construction_status = 'approved';
+      p.fire_impact_label   = 'Partially burned';
+      p.impact_color        = '#BA7517';
+      break;
+    case 'minimal':
+    default:
+      p.operating_status    = 'permanent';
+      p.construction_status = 'complete';
+      p.fire_impact_label   = 'Minimal or smoke damage';
+      p.impact_color        = '#1D9E75';
+      break;
+  }
+  return p;
+}
+
+let schoolFeatures       = [];
+let sortedSchoolFeatures = [];
+let activeSchoolProps    = null;
+const schoolMarkerLayer  = L.layerGroup();
+let schoolHighlightLayer = null;
+
+function loadSchools() {
+  schoolFeatures = SCHOOLS_DATA.features.filter(f => {
+    const p = f.properties;
+    return p.latitude >= 33.95 && p.latitude <= 34.15
+        && p.longitude >= -118.70 && p.longitude <= -118.45;
+  });
+  schoolFeatures.forEach(f => deriveSchoolStatus(f));
+  console.log('Schools loaded:', schoolFeatures.length);
+  buildSchoolMarkers();
+}
+
+function buildSchoolMarkers() {
+  schoolFeatures.forEach(f => {
+    const p     = f.properties;
+    const color = SCHOOL_OP_COLORS[p.operating_status] || '#888780';
+    const marker = L.marker([p.latitude, p.longitude], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div class="school-marker" style="background:${color};">S</div>`,
+        iconSize: [28, 28], iconAnchor: [14, 14],
+      }),
+    });
+    marker.bindTooltip(
+      `${p.name} — ${SCHOOL_OP_LABELS[p.operating_status] || p.operating_status}`,
+      { direction: 'top', offset: [0, -14] }
+    );
+    marker.on('click', e => {
+      L.DomEvent.stopPropagation(e);
+      map.flyTo([p.latitude, p.longitude], 16);
+      placeSchoolPulse(p);
+      openSchoolSidebar(p);
+    });
+    schoolMarkerLayer.addLayer(marker);
+  });
+}
+
+function showSchoolMarkers() {
+  if (!map.hasLayer(schoolMarkerLayer)) schoolMarkerLayer.addTo(map);
+}
+
+function hideSchoolMarkers() {
+  if (map.hasLayer(schoolMarkerLayer)) map.removeLayer(schoolMarkerLayer);
+  if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
+}
+
+function placeSchoolPulse(props) {
+  if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
+  const color = SCHOOL_OP_COLORS[props.operating_status] || '#888780';
+  schoolHighlightLayer = L.marker([props.latitude, props.longitude], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div class="school-pulse" style="--sc:${color};"></div>`,
+      iconSize: [36, 36], iconAnchor: [18, 18],
+    }),
+    zIndexOffset: -100,
+    interactive: false,
+  }).addTo(map);
+}
+
+function cityGroup(city) {
+  if (city === 'Pacific Palisades') return 'Pacific Palisades';
+  if (city === 'Malibu')            return 'Malibu';
+  return 'Canyon / Topanga / Westside';
+}
+
+function buildSchoolListHTML() {
+  sortedSchoolFeatures = [...schoolFeatures].sort((a, b) =>
+    a.properties.name.localeCompare(b.properties.name)
+  );
+  const groupOrder = ['Pacific Palisades', 'Malibu', 'Canyon / Topanga / Westside'];
+  const grouped    = {};
+  groupOrder.forEach(g => { grouped[g] = []; });
+  sortedSchoolFeatures.forEach((f, i) => grouped[cityGroup(f.properties.city || '')].push({ f, i }));
+
+  let body = '';
+  groupOrder.forEach(grp => {
+    const schools = grouped[grp];
+    if (!schools.length) return;
+    body += `<div class="school-group-hdr">${grp}</div>`;
+    schools.forEach(({ f, i }) => {
+      const p        = f.properties;
+      const color    = SCHOOL_OP_COLORS[p.operating_status] || '#888780';
+      const cat2Short = (p.cat2 || '').replace(/ Schools$/, '').replace(/ School$/, '');
+      const isActive  = activeSchoolProps && activeSchoolProps.name === p.name ? ' active' : '';
+      body += `<div class="school-row${isActive}" data-idx="${i}">
+        <div class="school-dot" style="background:${color};"></div>
+        <span class="school-name">${p.name}</span>
+        ${cat2Short ? `<span class="badge bg-gray" style="font-size:10px;padding:1px 6px;flex-shrink:0;">${cat2Short}</span>` : ''}
+      </div>`;
+    });
+  });
+
+  return `<div class="school-list-hdr" id="school-list-toggle">
+    <span>Schools (${schoolFeatures.length})</span>
+    <span class="school-chevron" id="school-chevron">&#9660;</span>
+  </div>
+  <div id="school-list-body">${body}</div>`;
+}
+
+function wireSchoolListClicks() {
+  const body = document.getElementById('school-list-body');
+  if (!body) return;
+  body.addEventListener('click', e => {
+    const row = e.target.closest('.school-row');
+    if (!row) return;
+    const f = sortedSchoolFeatures[parseInt(row.dataset.idx, 10)];
+    if (!f) return;
+    const p = f.properties;
+    map.flyTo([p.latitude, p.longitude], 16);
+    placeSchoolPulse(p);
+    openSchoolSidebar(p);
+  });
+  const toggle  = document.getElementById('school-list-toggle');
+  const chevron = document.getElementById('school-chevron');
+  if (toggle) {
+    toggle.addEventListener('click', e => {
+      if (e.target.closest('.school-row')) return;
+      const lb = document.getElementById('school-list-body');
+      if (!lb) return;
+      const hidden = lb.style.display === 'none';
+      lb.style.display = hidden ? '' : 'none';
+      if (chevron) chevron.classList.toggle('collapsed', !hidden);
+    });
+  }
+}
+
+function updateDefaultPanel() {
+  const el = document.getElementById('sb-default');
+  if (activeTab === 'infra') {
+    el.style.cssText = 'display:flex;flex-direction:column;flex:1;overflow-y:auto;';
+    el.innerHTML     = buildSchoolListHTML();
+    wireSchoolListClicks();
+  } else {
+    el.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;';
+    el.innerHTML     = '<p style="font-size:13px;color:#9e9e9e;line-height:1.5;">Click any parcel to see details</p>';
+  }
+}
+
+function schoolReopeningEst(op, cs) {
+  if (op === 'permanent')    return 'Fully operational';
+  if (cs === 'under_review') return 'Est. full reopening: 18–24 months';
+  if (cs === 'approved')     return 'Est. full reopening: 12–18 months';
+  return 'Est. full reopening: Unknown';
+}
+
+function renderSchoolDetail(p) {
+  const opColor  = SCHOOL_OP_COLORS[p.operating_status] || '#888';
+  const opLabel  = SCHOOL_OP_LABELS[p.operating_status] || p.operating_status;
+  const cs       = p.construction_status;
+  const si       = PERMIT_STAGES.findIndex(s => s.key === cs);
+  const fdClsMap = { major: 'red', moderate: 'amber', minimal: 'green' };
+  const fdCls    = fdClsMap[p.fire_damage] || 'gray';
+  let r1 = '', r2 = '';
+  PERMIT_STAGES.forEach((s, i) => {
+    const cls  = i < si ? 'p-done' : i === si ? 'p-active' : 'p-future';
+    const icon = i < si ? '&#10003;' : String(i + 1);
+    if (i > 0) {
+      r1 += `<div class="p-conn ${i <= si ? 'p-conn-done' : 'p-conn-future'}"></div>`;
+      r2 += `<div class="p-lsp"></div>`;
+    }
+    r1 += `<div class="p-node ${cls}">${icon}</div>`;
+    r2 += `<div class="p-lcell"><span${i === si ? ' class="p-lbl-on"' : ''}>${s.short}</span></div>`;
+  });
+  const cat2html = p.cat2 ? badge('blue', p.cat2) : '';
+  const cat3html = p.cat3 ? ' ' + badge('gray', p.cat3) : '';
+  const enroll   = p.enrollment != null ? Number(p.enrollment).toLocaleString() + ' students' : '—';
+  return `
+    ${cat2html || cat3html ? `<div style="margin-bottom:10px;">${cat2html}${cat3html}</div>` : ''}
+    ${srow('Enrollment', `<span style="font-weight:600;">${enroll}</span>`)}
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Fire damage assessment</div>
+    <div style="margin:6px 0 4px;">${badge(fdCls, p.fire_impact_label || fmt(p.fire_damage))}</div>
+    <p style="font-size:11px;color:#9e9e9e;margin:0 0 10px;line-height:1.4;">Drives the operating and construction status shown below</p>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Operating status</div>
+    <div style="margin:6px 0 10px;"><span class="sch-op-pill" style="background:${opColor}22;color:${opColor};">${opLabel}</span></div>
+    <div class="sb-section-label">Construction pipeline</div>
+    <div class="p-wrap">
+      <div class="p-row1">${r1}</div>
+      <div class="p-row2">${r2}</div>
+      <div class="p-days">${schoolReopeningEst(p.operating_status, cs)}</div>
+    </div>
+    <p class="sch-footnote">School reopening is a key factor in neighborhood rebuild decisions</p>`;
+}
+
+function openSchoolSidebar(props) {
+  if (selectedLayer) { geoLayer.resetStyle(selectedLayer); selectedLayer = null; activeFeature = null; }
+  activeSchoolProps = props;
+  document.getElementById('sb-default').style.display = 'none';
+  document.getElementById('sb-hdr').style.display      = 'flex';
+  document.getElementById('sb-addr').textContent       = props.name;
+  document.getElementById('sb-meta').textContent       = [props.addrln1, props.city, props.zip].filter(Boolean).join(', ');
+  document.getElementById('sb-use-badge').textContent  = props.cat2 || '';
+  document.getElementById('sb-body').innerHTML         = renderSchoolDetail(props);
+}
+
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeTab = tab.dataset.tab;
+    redrawLayer();
+    updateStats();
+    updateLegend();
+    if (activeTab === 'infra') {
+      showSchoolMarkers();
+    } else {
+      hideSchoolMarkers();
+      activeSchoolProps = null;
+    }
+    if (activeFeature) {
+      openSidebar(activeFeature.properties);
+    } else {
+      updateDefaultPanel();
+    }
+  });
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

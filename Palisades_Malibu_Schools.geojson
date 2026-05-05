@@ -1,0 +1,245 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Palisades Charter High School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "major"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.526,
+          34.045
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Palisades Charter Elementary School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.529,
+          34.047
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Marquez Charter Elementary School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "major"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.535,
+          34.053
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Calvary Christian School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.522,
+          34.043
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Village School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.531,
+          34.046
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "St. Matthew\u2019s Parish School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.517,
+          34.041
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Corpus Christi School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.515,
+          34.04
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Seven Arrows Elementary School",
+        "city": "Pacific Palisades",
+        "fire_damage_status": "moderate"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.523,
+          34.044
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Malibu High School",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.683,
+          34.036
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Malibu Elementary School",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.69,
+          34.035
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Webster Elementary School",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.64,
+          34.03
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Our Lady of Malibu School",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.72,
+          34.04
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Malibu Methodist Nursery School",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.635,
+          34.032
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Lighthouse Christian Academy",
+        "city": "Malibu",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.65,
+          34.033
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Canyon Elementary School",
+        "city": "Santa Monica Mountains",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.6,
+          34.05
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Topanga Elementary Charter School",
+        "city": "Topanga",
+        "fire_damage_status": "minimal"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.6,
+          34.09
+        ]
+      }
+    }
+  ]
+}
