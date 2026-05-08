@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 filter_schools.py)",
+      "Bash(python3 *)"
+    ]
+  }
+}

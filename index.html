@@ -6,6 +6,9 @@
 <title>Pacific Palisades Rebuild Navigator</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="parcels_data.js"></script>
+<script src="schools_data.js"></script>
+<script src="sample_permits_data.js"></script>
+<script src="dins_data.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -69,12 +72,15 @@ body {
 
 /* ── Main area ── */
 #main { display: flex; flex: 1; overflow: hidden; }
-#map { flex: 1; }
+#map { flex: 1; overflow: hidden; position: relative; }
 
 /* ── Sidebar ── */
 #sidebar {
   width: 300px; background: #fff; border-left: 1px solid #e0e0e0;
   overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
+  min-height: 0; height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #e0e0e0 transparent;
 }
 #sb-default {
   flex: 1; display: flex; align-items: center; justify-content: center;
@@ -99,7 +105,7 @@ body {
   color: #9e9e9e; font-size: 20px; line-height: 1; padding: 0; flex-shrink: 0;
 }
 #close-btn:hover { color: #333; }
-#sb-body { padding: 10px 14px 16px; }
+#sb-body { padding: 14px 14px 40px 14px; }
 
 /* ── Detail rows ── */
 .detail-row {
@@ -262,6 +268,8 @@ body {
 .legend-panel {
   background: #fff; padding: 10px 13px; border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.18); font-size: 12px; min-width: 160px;
+  max-height: 55vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #e0e0e0 transparent;
 }
 .legend-title { font-weight: 700; color: #212121; margin-bottom: 7px; font-size: 12px; }
 .legend-row { display: flex; align-items: center; gap: 7px; margin: 4px 0; color: #555; }
@@ -335,9 +343,319 @@ body {
   border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 #confirm-close:hover { background: #1976d2; }
+
+/* -- Verification banner --------------------------------------------------- */
+.verify-banner {
+  background: #f5f5f5; border: 1px solid #e8e8e8; border-radius: 6px;
+  padding: 9px 12px; margin-bottom: 16px;
+  font-size: 11px; color: #9e9e9e; line-height: 1.5;
+}
+.verify-banner strong { color: #757575; }
+
+/* -- Materials prompt (in modal-confirm) ------------------------------------ */
+.mat-prompt { margin-top: 4px; }
+.mat-prompt-q { font-size: 14px; font-weight: 700; color: #212121; margin-bottom: 6px; }
+.mat-prompt-sub { font-size: 13px; color: #616161; line-height: 1.5; margin-bottom: 18px; }
+.mat-prompt-btns { display: flex; flex-direction: column; gap: 9px; }
+#mat-add-btn {
+  padding: 10px; background: #1565c0; color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+#mat-add-btn:hover { background: #1976d2; }
+#confirm-close.as-skip {
+  padding: 10px; background: #f5f5f5; color: #616161;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+  width: 100%;
+}
+#confirm-close.as-skip:hover { background: #eeeeee; }
+
+/* -- Materials form wrapper ------------------------------------------------- */
+#materials-form-wrap {
+  display: none; overflow-y: auto; flex: 1; padding: 12px 20px 0;
+}
+.mat-back-btn {
+  background: none; border: none; cursor: pointer; color: #1565c0;
+  font-size: 12px; font-weight: 600; padding: 0; margin-bottom: 12px;
+}
+.mat-back-btn:hover { text-decoration: underline; }
+.form-sub-note { font-size: 12px; color: #9e9e9e; margin-bottom: 14px; line-height: 1.4; }
+.check-col { display: flex; flex-direction: column; gap: 6px; }
+.check-opt {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; color: #444; cursor: pointer; user-select: none;
+}
+.check-opt input[type="checkbox"] {
+  accent-color: #1565c0; width: 15px; height: 15px;
+  flex-shrink: 0; margin-top: 1px; cursor: pointer;
+}
+.other-inp {
+  width: 100%; margin-top: 4px; padding: 5px 8px;
+  border: 1px solid #e0e0e0; border-radius: 5px;
+  font-size: 12px; font-family: inherit; color: #333; display: none;
+}
+.other-inp:focus { outline: none; border-color: #1565c0; }
+#mat-notes {
+  width: 100%; border: 1px solid #e0e0e0; border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; font-family: inherit; resize: none; color: #333;
+}
+#mat-notes:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 2px rgba(21,101,192,0.14); }
+#mat-char-count { font-size: 11px; color: #aaa; text-align: right; margin-top: 3px; }
+#materials-footer {
+  padding: 14px 20px; border-top: 1px solid #eeeeee; flex-shrink: 0; display: none;
+}
+#mat-submit-btn {
+  width: 100%; padding: 10px; background: #1565c0; color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+#mat-submit-btn:hover { background: #1976d2; }
+#materials-confirm { display: none; padding: 36px 28px; text-align: center; flex: 1; }
+
+/* -- Materials sidebar section ---------------------------------------------- */
+.mat-section {
+  margin-top: 14px; border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden;
+}
+.mat-section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; background: #fafafa; cursor: pointer; user-select: none;
+}
+.mat-section-hdr:hover { background: #f3f3f3; }
+.mat-section-title {
+  font-size: 12px; font-weight: 700; color: #333;
+  display: flex; align-items: center; gap: 5px;
+}
+.mat-section-date { color: #9e9e9e; font-weight: 400; font-size: 10px; }
+.mat-chevron { font-size: 10px; color: #9e9e9e; transition: transform 0.18s; display: inline-block; }
+.mat-chevron.open { transform: rotate(180deg); }
+.mat-section-body { padding: 10px 12px 12px; display: none; }
+.mat-section-body.open { display: block; }
+.mat-row { display: flex; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+.mat-row:last-of-type { border-bottom: none; }
+.mat-lbl { color: #9e9e9e; flex-shrink: 0; width: 92px; font-size: 11px; }
+.mat-val { color: #333; flex: 1; line-height: 1.4; }
+.mat-footnote { font-size: 10px; color: #bdbdbd; font-style: italic; margin-top: 8px; }
+.mat-update-btn {
+  width: 100%; margin-top: 10px; padding: 7px;
+  background: none; border: 1px solid #1565c0; border-radius: 6px;
+  color: #1565c0; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.mat-update-btn:hover { background: #e3f2fd; }
+.mat-add-link {
+  font-size: 12px; color: #1565c0; cursor: pointer;
+  text-decoration: underline; margin-top: 4px; display: inline-block;
+}
+
+/* -- Materials summary in intent tab ---------------------------------------- */
+.mat-intent-row {
+  font-size: 12px; color: #616161; padding: 5px 0;
+  border-top: 1px solid #f5f5f5; margin-top: 4px;
+}
+.mat-intent-lnk { color: #1565c0; font-weight: 600; cursor: pointer; }
+.mat-intent-lnk:hover { text-decoration: underline; }
+
+/* ── Filter panel ── */
+#stats-note {
+  font-size: 10px; color: #9e9e9e; text-align: center;
+  padding: 3px 10px; background: #fafafa;
+  border-bottom: 1px solid #e0e0e0; flex-shrink: 0;
+}
+.filter-group-hdr {
+  font-size: 10px; font-weight: 700; color: #9e9e9e;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin: 8px 0 3px;
+}
+.filter-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #444; padding: 2px 0;
+  cursor: pointer; user-select: none;
+}
+.filter-row input[type="checkbox"] {
+  accent-color: #1565c0; width: 13px; height: 13px;
+  flex-shrink: 0; cursor: pointer;
+}
+.filter-count { color: #bdbdbd; font-size: 11px; margin-left: auto; }
+.filter-reset {
+  font-size: 11px; color: #1565c0; cursor: pointer;
+  text-decoration: underline; display: block; margin-top: 8px;
+}
+.filter-reset:hover { color: #0d47a1; }
+
+/* ── Color-by toggle ── */
+.color-by-ctrl {
+  background: #fff; border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  font-size: 12px; position: relative; overflow: visible;
+}
+.color-by-btn {
+  padding: 8px 12px; cursor: pointer; color: #444;
+  white-space: nowrap; border-radius: 6px;
+}
+.color-by-btn:hover { background: #f5f5f5; }
+.color-by-dropdown {
+  position: absolute; top: calc(100% + 3px); right: 0;
+  background: #fff; border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  min-width: 150px; z-index: 1100; overflow: hidden;
+}
+.color-by-opt {
+  padding: 9px 14px; cursor: pointer; font-size: 12px; color: #444;
+}
+.color-by-opt:hover { background: #f5f5f5; }
+.color-by-opt.active { color: #1565c0; font-weight: 600; background: #e3f2fd; }
+
+/* ── Prototype banner ── */
+#proto-banner {
+  background: #FFF8E1; color: #F57F17;
+  font-size: 11px; font-weight: 600; text-align: center;
+  padding: 4px 10px; flex-shrink: 0;
+  border-bottom: 1px solid #FFE082; letter-spacing: 0.1px;
+}
+
+/* ── Password gate ── */
+#pw-gate {
+  position: fixed; inset: 0; z-index: 10000;
+  background: #1a1a2e;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.pw-card {
+  background: #fff; border-radius: 12px; padding: 40px;
+  max-width: 420px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.pw-school {
+  font-size: 10px; font-weight: 700; color: #9e9e9e;
+  text-transform: uppercase; letter-spacing: 1px;
+  text-align: center; margin-bottom: 16px;
+}
+.pw-title { font-size: 22px; font-weight: 700; color: #1a237e; text-align: center; margin-bottom: 4px; }
+.pw-sub   { font-size: 13px; color: #9e9e9e; text-align: center; margin-bottom: 20px; }
+.pw-divider { border: none; border-top: 1px solid #e0e0e0; margin: 0 0 20px; }
+.pw-note  { font-size: 12px; color: #757575; text-align: center; line-height: 1.5; margin-bottom: 20px; }
+.pw-input {
+  width: 100%; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  padding: 11px 14px; font-size: 14px; font-family: inherit;
+  color: #333; outline: none; display: block; margin-bottom: 8px; text-align: center;
+}
+.pw-input:focus { border-color: #1a237e; box-shadow: 0 0 0 3px rgba(26,35,126,0.12); }
+.pw-error { font-size: 12px; color: #E24B4A; text-align: center; margin-bottom: 12px; }
+.pw-btn {
+  width: 100%; padding: 12px; background: #1a237e; color: #fff;
+  border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.pw-btn:hover { background: #283593; }
+@keyframes pw-shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-8px); }
+  40%     { transform: translateX(8px); }
+  60%     { transform: translateX(-5px); }
+  80%     { transform: translateX(5px); }
+}
+.pw-shake { animation: pw-shake 0.5s ease; }
+
+/* ── Disclaimer modal ── */
+#disclaimer-modal {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(26,26,46,0.88);
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 24px 16px; overflow-y: auto;
+}
+.disc-card {
+  background: #fff; border-radius: 12px; padding: 40px;
+  max-width: 560px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4); margin: auto;
+}
+.disc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.disc-icon   { font-size: 28px; color: #BA7517; flex-shrink: 0; }
+.disc-title  { font-size: 20px; font-weight: 700; color: #212121; }
+.disc-body {
+  font-size: 13px; color: #444; line-height: 1.7; margin-bottom: 20px;
+}
+.disc-body p { margin-bottom: 12px; }
+.disc-body p:last-child { margin-bottom: 0; }
+.disc-body-2 {
+  font-size: 12px; color: #757575; line-height: 1.65;
+  padding-top: 16px; border-top: 1px solid #f0f0f0; margin-bottom: 24px;
+}
+.disc-body-2 p { margin-bottom: 10px; }
+.disc-body-2 p:last-child { margin-bottom: 0; }
+.disc-footer { display: flex; gap: 12px; }
+.disc-decline {
+  flex: 1; padding: 11px; background: #fff; color: #616161;
+  border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.disc-decline:hover { background: #f5f5f5; }
+.disc-accept {
+  flex: 2; padding: 11px; background: #1a237e; color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.disc-accept:hover { background: #283593; }
+
+/* ── Header "?" button ── */
+#disclaimer-btn {
+  margin-left: auto; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35); border-radius: 50%;
+  color: #fff; font-size: 13px; font-weight: 700;
+  width: 26px; height: 26px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+#disclaimer-btn:hover { background: rgba(255,255,255,0.28); }
+
+/* ── Sidebar footer ── */
+#sb-footer {
+  padding: 14px 14px 18px; border-top: 1px solid #f0f0f0;
+  margin-top: auto; flex-shrink: 0;
+  font-size: 11px; color: #bdbdbd; line-height: 1.65; text-align: center;
+}
+#sb-footer a {
+  color: #1565c0; cursor: pointer; font-size: 11px;
+  text-decoration: underline; display: inline-block; margin-top: 4px;
+}
 </style>
 </head>
 <body>
+
+<!-- Password gate -->
+<div id="pw-gate">
+  <div class="pw-card">
+    <h1 class="pw-title">Palisades Rebuild Navigator</h1>
+    <p class="pw-sub">Capstone Research Prototype</p>
+    <hr class="pw-divider">
+    <p class="pw-note">This tool is restricted to authorized demo participants only.</p>
+    <input type="password" id="pw-input" class="pw-input" placeholder="Enter access code">
+    <div id="pw-error" class="pw-error" style="display:none;"></div>
+    <button id="pw-btn" class="pw-btn">Access Demo</button>
+  </div>
+</div>
+
+<!-- Disclaimer modal -->
+<div id="disclaimer-modal">
+  <div class="disc-card">
+    <div class="disc-header">
+      <span class="disc-icon">&#9888;</span>
+      <h2 class="disc-title">Important Disclaimer</h2>
+    </div>
+    <div class="disc-body">
+      <p>This platform is an academic research prototype developed by MBA students as part of a capstone project.</p>
+      <p>All data displayed on this platform — including permit status, rebuild intentions, building materials, contractor information, investor activity, and neighborhood momentum indicators — is either simulated, anonymized, or used for demonstration purposes only.</p>
+      <p>This tool does not reflect actual recovery efforts, real permit filings, actual resident intentions, or verified property information in Pacific Palisades or any other community.</p>
+      <p>This platform should not be used to make financial, legal, insurance, construction, or real estate decisions of any kind.</p>
+      <p>The research team makes no representations about the accuracy, completeness, or timeliness of any information displayed.</p>
+    </div>
+    <div class="disc-body-2">
+      <p>Data sources used in this prototype include publicly available LA County parcel boundaries, LA County fire damage assessment data (DINS), and publicly available school location data. These sources are used for academic demonstration purposes only.</p>
+      <p>Any resemblance to specific individuals, properties, or actual recovery outcomes is coincidental.</p>
+    </div>
+    <div class="disc-footer">
+      <button class="disc-decline" id="disc-decline">Decline</button>
+      <button class="disc-accept" id="disc-accept">I understand — Enter Demo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prototype banner (always visible once logged in) -->
+<div id="proto-banner" style="display:none;">&#9888; Academic prototype — simulated data only — not for real-world use</div>
 
 <div id="loading-overlay">
   <div class="spinner"></div>
@@ -347,6 +665,7 @@ body {
 <div id="header">
   <h1>Pacific Palisades Rebuild Navigator</h1>
   <span class="sub">Post-wildfire recovery dashboard</span>
+  <button id="disclaimer-btn" title="View disclaimer">?</button>
 </div>
 
 <div id="stats-bar">
@@ -355,6 +674,7 @@ body {
   <div class="stat"><div class="stat-value" id="s3">—</div><div class="stat-label" id="l3">—</div></div>
   <div class="stat"><div class="stat-value" id="s4">—</div><div class="stat-label" id="l4">—</div></div>
 </div>
+<div id="stats-note">Residential parcels only</div>
 
 <div id="tabs">
   <div class="tab active" data-tab="permit">Permitting &amp; construction</div>
@@ -378,6 +698,11 @@ body {
       <button id="close-btn" title="Close">×</button>
     </div>
     <div id="sb-body"></div>
+    <div id="sb-footer">
+      MBA Capstone 2025<br>
+      Research prototype — not for public use<br>
+      <a id="sb-disclaimer-link">View disclaimer</a>
+    </div>
   </div>
 </div>
 
@@ -393,6 +718,9 @@ body {
     </div>
 
     <form id="declare-form" novalidate>
+      <div class="verify-banner">
+        <strong>Owner verification:</strong> In a future version, submitting materials will require a scan of your ID or driver&#39;s license matched against the property ownership record. For now, submissions are unverified.
+      </div>
       <div class="form-group">
         <span class="form-label">What do you intend to do with this property?</span>
         <div class="radio-col">
@@ -446,18 +774,409 @@ body {
       <button type="submit" form="declare-form" id="modal-submit">Submit declaration</button>
     </div>
 
-    <div id="modal-confirm" style="display:none;">
+    <div id="modal-confirm" style="display:none; padding:32px 24px; text-align:center; flex:1;">
+      <div class="confirm-check" style="margin-bottom:12px;">✓</div>
+      <p id="confirm-msg" style="font-size:15px;color:#333;line-height:1.6;margin-bottom:20px;"></p>
+      <div class="mat-prompt">
+        <p class="mat-prompt-q">Want to add your building materials?</p>
+        <p class="mat-prompt-sub">This helps your neighbors see what others are building. You can skip and come back later.</p>
+        <div class="mat-prompt-btns">
+          <button id="mat-add-btn">Add materials now</button>
+          <button id="confirm-close" class="as-skip">Skip for now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Materials form -->
+    <div id="materials-form-wrap">
+      <button class="mat-back-btn" id="mat-back-btn">&#8592; Back</button>
+      <div class="verify-banner">
+        <strong>Owner verification:</strong> In a future version, submitting materials will require a scan of your ID or driver&#39;s license matched against the property ownership record. For now, submissions are unverified.
+      </div>
+      <p class="form-sub-note">This information is public and visible to your neighbors</p>
+      <form id="materials-form" novalidate>
+
+        <div class="form-group">
+          <span class="form-label">What is your primary building structure?</span>
+          <div class="radio-col">
+            <label class="radio-opt"><input type="radio" name="mat_structure" value="Concrete, CMU, or ICF"> Concrete, CMU, or ICF <span style="color:#1D9E75;font-size:11px;">(recommended)</span></label>
+            <label class="radio-opt"><input type="radio" name="mat_structure" value="Steel frame"> Steel frame</label>
+            <label class="radio-opt"><input type="radio" name="mat_structure" value="Wood frame with fire-rated assemblies"> Wood frame with fire-rated assemblies</label>
+            <label class="radio-opt"><input type="radio" name="mat_structure" value="Not yet decided"> Not yet decided</label>
+            <label class="radio-opt"><input type="radio" name="mat_structure" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-structure-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What roofing material are you using?</span>
+          <div class="radio-col">
+            <label class="radio-opt"><input type="radio" name="mat_roof" value="Metal"> Metal <span style="color:#1D9E75;font-size:11px;">(recommended)</span></label>
+            <label class="radio-opt"><input type="radio" name="mat_roof" value="Tile"> Tile</label>
+            <label class="radio-opt"><input type="radio" name="mat_roof" value="Class A asphalt shingles"> Class A asphalt shingles</label>
+            <label class="radio-opt"><input type="radio" name="mat_roof" value="Not yet decided"> Not yet decided</label>
+            <label class="radio-opt"><input type="radio" name="mat_roof" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-roof-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What exterior wall material are you using?</span>
+          <div class="radio-col">
+            <label class="radio-opt"><input type="radio" name="mat_walls" value="Stucco"> Stucco</label>
+            <label class="radio-opt"><input type="radio" name="mat_walls" value="Fiber cement (e.g. HardiePlank)"> Fiber cement (e.g. HardiePlank)</label>
+            <label class="radio-opt"><input type="radio" name="mat_walls" value="Concrete panels"> Concrete panels</label>
+            <label class="radio-opt"><input type="radio" name="mat_walls" value="Not yet decided"> Not yet decided</label>
+            <label class="radio-opt"><input type="radio" name="mat_walls" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-walls-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What type of windows are you installing?</span>
+          <div class="radio-col">
+            <label class="radio-opt"><input type="radio" name="mat_windows" value="Dual-pane tempered glass"> Dual-pane tempered glass <span style="color:#1D9E75;font-size:11px;">(recommended)</span></label>
+            <label class="radio-opt"><input type="radio" name="mat_windows" value="Triple-pane"> Triple-pane</label>
+            <label class="radio-opt"><input type="radio" name="mat_windows" value="Single pane"> Single pane</label>
+            <label class="radio-opt"><input type="radio" name="mat_windows" value="Not yet decided"> Not yet decided</label>
+            <label class="radio-opt"><input type="radio" name="mat_windows" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-windows-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What frame material are you using?</span>
+          <div class="radio-col">
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Aluminum-clad"> Aluminum-clad <span style="color:#1D9E75;font-size:11px;">(recommended)</span></label>
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Fiberglass"> Fiberglass</label>
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Vinyl"> Vinyl</label>
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Wood"> Wood</label>
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Not yet decided"> Not yet decided</label>
+            <label class="radio-opt"><input type="radio" name="mat_frames" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-frames-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What fire suppression systems are you installing? <span class="form-optional">(select all that apply)</span></span>
+          <div class="check-col">
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="Interior sprinklers (NFPA 13D)"> Interior sprinklers (NFPA 13D)</label>
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="Exterior roof sprinklers"> Exterior roof sprinklers</label>
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="Perimeter irrigation system"> Perimeter irrigation system</label>
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="Gel / foam system"> Gel / foam system</label>
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="None planned"> None planned</label>
+            <label class="check-opt"><input type="checkbox" name="mat_suppression" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-suppression-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">What defensible space zones have you cleared or are planning to clear? <span class="form-optional">(select all that apply)</span></span>
+          <div class="check-col">
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="Zone 0 cleared (0-5 ft from structure)"> Zone 0 cleared (0&#8211;5 ft from structure)</label>
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="Zone 1 cleared (5-30 ft)"> Zone 1 cleared (5&#8211;30 ft)</label>
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="Zone 2 cleared (30-100 ft)"> Zone 2 cleared (30&#8211;100 ft)</label>
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="All zones cleared"> All zones cleared</label>
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="Not yet started"> Not yet started</label>
+            <label class="check-opt"><input type="checkbox" name="mat_dspace" value="Other"> Other (specify):</label>
+            <input type="text" class="other-inp" id="mat-dspace-other" placeholder="Describe...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="mat-notes">
+            Anything else about your materials or construction approach?
+            <span class="form-optional">(optional &middot; 280 char max)</span>
+          </label>
+          <textarea id="mat-notes" name="mat_notes" maxlength="280" rows="3"
+            placeholder="Share any details about your approach&#8230;"></textarea>
+          <div id="mat-char-count">0 / 280</div>
+        </div>
+
+      </form>
+    </div>
+
+    <div id="materials-footer">
+      <button type="submit" form="materials-form" id="mat-submit-btn">Submit materials</button>
+    </div>
+
+    <div id="materials-confirm">
       <div class="confirm-check">✓</div>
-      <p id="confirm-msg"></p>
-      <button id="confirm-close">Done</button>
+      <p id="mat-confirm-msg" style="font-size:15px;color:#333;line-height:1.6;margin-bottom:24px;">
+        Materials submitted. Your neighbors can now see your building choices.
+      </p>
+      <button id="mat-confirm-close" style="padding:9px 32px;background:#1565c0;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Done</button>
     </div>
   </div>
 </div>
 
-<script src="schools_data.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 'use strict';
+
+// ─── Building materials data (keyed by APN) ───────────────────────────────────
+var MATERIALS_DATA = {
+  "4412-010-003": {
+    submitted_date: "2025-03-15",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
+    defensible_space: ["All zones cleared"],
+    notes: ""
+  },
+  "4408-021-003": {
+    submitted_date: "2025-04-02",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Tile",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Fiberglass",
+    suppression: ["None planned"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: "Working with architect on fire suppression options"
+  },
+  "4407-006-001": {
+    submitted_date: "2025-04-10",
+    structure: "Steel frame",
+    roof: "Metal",
+    exterior_walls: "Concrete panels",
+    windows: "Triple-pane",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers"],
+    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: "Going full non-combustible. Architect is Lautner-influenced."
+  },
+  "4412-023-001": {
+    submitted_date: "2025-02-28",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Class A asphalt shingles",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Vinyl",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)"],
+    notes: ""
+  },
+  "4410-003-021": {
+    submitted_date: "2025-05-01",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Gel / foam system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Insurance required full sprinkler system"
+  },
+  "4409-026-013": {
+    submitted_date: "2025-03-22",
+    structure: "Not yet decided",
+    roof: "Not yet decided",
+    exterior_walls: "Not yet decided",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Not yet decided",
+    suppression: ["Not yet started"],
+    defensible_space: ["Not yet started"],
+    notes: "Still working with structural engineer on options"
+  },
+  "4409-020-006": {
+    submitted_date: "2025-04-18",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Fiberglass",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: ""
+  },
+  "4408-031-016": {
+    submitted_date: "2025-03-05",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Concrete panels",
+    windows: "Triple-pane",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers", "Perimeter irrigation system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Targeting Wildfire Home Retrofit program compliance"
+  },
+  "4412-022-012": {
+    submitted_date: "2025-04-30",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Tile",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["None planned"],
+    defensible_space: ["Zone 2 cleared (30-100 ft)"],
+    notes: ""
+  },
+  "4408-016-010": {
+    submitted_date: "2025-04-07",
+    structure: "Steel frame",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "All zones cleared"],
+    notes: "Steel frame chosen for insurance premium reduction"
+  },
+  "4412-014-039": {
+    submitted_date: "2025-02-14",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Class A asphalt shingles",
+    exterior_walls: "Stucco",
+    windows: "Not yet decided",
+    window_frames: "Not yet decided",
+    suppression: ["None planned"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)"],
+    notes: "Budget constraints limiting non-combustible upgrades"
+  },
+  "4412-022-029": {
+    submitted_date: "2025-05-03",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Second rebuild after prior fire loss — going fully fire-resistant this time"
+  },
+  "4411-027-016": {
+    submitted_date: "2025-03-30",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Metal",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Fiberglass",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: ""
+  },
+  "4408-011-005": {
+    submitted_date: "2025-04-25",
+    structure: "Not yet decided",
+    roof: "Metal",
+    exterior_walls: "Not yet decided",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Perimeter irrigation system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Decided on roof and windows, still evaluating structure and walls"
+  },
+  "4412-004-090": {
+    submitted_date: "2025-01-30",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Concrete panels",
+    windows: "Triple-pane",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers"],
+    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: "Full hardened construction. Permit submitted."
+  },
+  "4410-027-023": {
+    submitted_date: "2025-04-12",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Tile",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Vinyl",
+    suppression: ["None planned"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)"],
+    notes: ""
+  },
+  "4407-006-029": {
+    submitted_date: "2025-03-18",
+    structure: "Steel frame",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Gel / foam system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Modular steel construction — faster timeline"
+  },
+  "4407-006-021": {
+    submitted_date: "2025-04-28",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Class A asphalt shingles",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Fiberglass",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 2 cleared (30-100 ft)"],
+    notes: ""
+  },
+  "4408-013-009": {
+    submitted_date: "2025-05-02",
+    structure: "Concrete, CMU, or ICF",
+    roof: "Metal",
+    exterior_walls: "Fiber cement (e.g. HardiePlank)",
+    windows: "Triple-pane",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
+    defensible_space: ["All zones cleared"],
+    notes: "Concrete ICF walls, planning to get IBHS Fortified certification"
+  },
+  "4409-018-007": {
+    submitted_date: "2025-03-10",
+    structure: "Wood frame with fire-rated assemblies",
+    roof: "Metal",
+    exterior_walls: "Stucco",
+    windows: "Dual-pane tempered glass",
+    window_frames: "Aluminum-clad",
+    suppression: ["Interior sprinklers (NFPA 13D)"],
+    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
+    notes: ""
+  }
+};
+
+// ─── Layer categories & filter state ─────────────────────────────────────────
+function categorizeParcel(props) {
+  const ut = props.UseType        || '';
+  const ud = props.UseDescription || '';
+  if (ut === 'Residential') {
+    if (ud.includes('Two Units') || ud.includes('Three Units') ||
+        ud.includes('Four Units') || ud.includes('Five or more')) return 'residential_multi';
+    if (ud.includes('Mobile Home')) return 'residential_mobile';
+    return 'residential_single';
+  }
+  if (ut === 'Commercial')    return 'commercial';
+  if (ut === 'Government')    return 'other_government';
+  if (ut === 'Industrial')    return 'other_industrial';
+  if (ut === 'Institutional') return 'other_institutional';
+  if (ut === 'Recreational')  return 'other_recreational';
+  if (ut === 'Irrigated Farm') return 'other_farm';
+  return 'other_misc';
+}
+
+var CATEGORY_COUNTS    = {};
+var FIRE_DAMAGE_COUNTS = {};
+
+const FILTER_DEFAULTS = {
+  residential_single:   true,
+  residential_multi:    true,
+  residential_mobile:   true,
+  commercial:           true,
+  other_government:     false,
+  other_industrial:     false,
+  other_institutional:  false,
+  other_recreational:   false,
+  other_farm:           false,
+  other_misc:           false,
+  fire_destroyed_major: true,
+  fire_minor_affected:  true,
+  fire_no_damage:       false,
+  fire_not_assessed:    false,
+};
+const FILTER_STATE = Object.assign({}, FILTER_DEFAULTS);
 
 // ─── Seed function for deterministic fake data ────────────────────────────────
 function seed(apn) {
@@ -494,7 +1213,17 @@ function getInfraColor(apn) {
   return INFRA_RED;
 }
 
+let colorByMode = 'permit';
+
 function getParcelColor(props) {
+  const cat = props.display_category || '';
+  if (cat === 'commercial')      return '#888780';
+  if (cat.startsWith('other_')) return '#D3D1C7';
+  // Residential — check for fire damage color mode
+  if (activeTab === 'permit' && colorByMode === 'damage') {
+    return getFireDamageColor(props.fire_damage);
+  }
+  // Residential — tab-based coloring
   const apn = props.APN || '';
   switch (activeTab) {
     case 'permit':
@@ -532,6 +1261,187 @@ function augment(props) {
   props.days_in_review   = (s % 90) + 1;
 }
 
+// ─── Permit data join ─────────────────────────────────────────────────────────
+function normalizeAddress(addr) {
+  if (!addr) return '';
+  return addr
+    .toUpperCase()
+    .replace(/[.,#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\bBOULEVARD\b/g, 'BLVD')
+    .replace(/\bAVENUE\b/g, 'AVE')
+    .replace(/\bSTREET\b/g, 'ST')
+    .replace(/\bDRIVE\b/g, 'DR')
+    .replace(/\bROAD\b/g, 'RD')
+    .replace(/\bLANE\b/g, 'LN')
+    .replace(/\bCOURT\b/g, 'CT')
+    .replace(/\bPLACE\b/g, 'PL')
+    .replace(/\bWAY\b/g, 'WY')
+    .replace(/\bTERRACE\b/g, 'TER')
+    .replace(/\bCIRCLE\b/g, 'CIR');
+}
+
+function extractStreetKey(addr) {
+  if (!addr) return '';
+  const ci = addr.indexOf(',');
+  return normalizeAddress(ci >= 0 ? addr.substring(0, ci) : addr).trim();
+}
+
+function joinPermitData(features) {
+  if (typeof PERMIT_DATA === 'undefined' || !PERMIT_DATA.length) return;
+  const total = PERMIT_DATA.length;
+
+  // Index features by normalized street key
+  const byKey = new Map();
+  features.forEach(f => {
+    const k = extractStreetKey(f.properties.SitusAddress || '');
+    if (k) { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(f); }
+  });
+
+  const assignedIds   = new Set();
+  let matchedPermits  = 0;
+  let parcelsWithReal = 0;
+
+  PERMIT_DATA.forEach(permit => {
+    const pk = extractStreetKey(permit.address || '');
+    let found = null;
+
+    // 1. Exact normalized street key match
+    if (byKey.has(pk)) found = byKey.get(pk)[0];
+
+    // 2. Fuzzy: same street number + first 6 chars of street name agree
+    if (!found) {
+      const pp = pk.split(' ');
+      if (pp[0]) {
+        for (const [k, feats] of byKey) {
+          const qp = k.split(' ');
+          if (qp[0] === pp[0] && pp.length > 1 && qp.length > 1) {
+            const pSt = pp.slice(1).join(' ');
+            const qSt = qp.slice(1).join(' ');
+            if (pSt && qSt && pSt.substring(0, 6) === qSt.substring(0, 6)) {
+              found = feats[0]; break;
+            }
+          }
+        }
+      }
+    }
+
+    if (found) {
+      matchedPermits++;
+      const props    = found.properties;
+      const parcelId = props.APN || props.SitusAddress;
+      console.log(`Matched: ${props.SitusAddress || ''} -> ${permit.address}`);
+      if (!assignedIds.has(parcelId)) {
+        assignedIds.add(parcelId);
+        props.real_permit   = permit;
+        props.permit_status = permit.construction_status;
+        if (permit.construction_status === 'no_application' && !permit.post_fire) {
+          props.intent = null;
+        }
+        parcelsWithReal++;
+      }
+    } else {
+      console.log(`Unmatched permit: ${permit.address}`);
+    }
+  });
+
+  const unmatched = total - matchedPermits;
+  console.log('Permit data loaded');
+  console.log(`Total permits in file: ${total}`);
+  console.log(`Successfully matched to parcels: ${matchedPermits}`);
+  console.log(`Unmatched permits: ${unmatched}`);
+  console.log(`Parcels showing real data: ${parcelsWithReal}`);
+}
+
+// ─── Fire damage (DINS) tagging ───────────────────────────────────────────────
+function getFireFilterKey(props) {
+  const d = props.fire_damage || 'Not assessed';
+  if (d === 'Destroyed (>50%)' || d === 'Major (26-50%)') return 'fire_destroyed_major';
+  if (d === 'Minor (10-25%)'   || d === 'Affected (1-9%)') return 'fire_minor_affected';
+  if (d === 'No Damage') return 'fire_no_damage';
+  return 'fire_not_assessed';
+}
+
+function getFireDamageColor(damage) {
+  switch (damage) {
+    case 'Destroyed (>50%)':
+    case 'Major (26-50%)':  return '#E24B4A';
+    case 'Minor (10-25%)':
+    case 'Affected (1-9%)': return '#BA7517';
+    case 'No Damage':       return '#1D9E75';
+    default:                return '#D3D1C7';
+  }
+}
+
+function tagFireDamage(features) {
+  if (typeof DINS_DATA === 'undefined') return;
+  FIRE_DAMAGE_COUNTS = { fire_destroyed_major: 0, fire_minor_affected: 0,
+                         fire_no_damage: 0, fire_not_assessed: 0 };
+
+  features.forEach(f => {
+    const props = f.properties;
+    const apn   = String(props.APN || '');
+    const dins  = DINS_DATA.parcels && DINS_DATA.parcels[apn];
+
+    if (dins) {
+      props.fire_damage      = dins.damage;
+      props.structure_type   = dins.structure_type;
+      props.structure_count  = dins.structure_count;
+    } else {
+      props.fire_damage      = 'Not assessed';
+      props.structure_type   = null;
+      props.structure_count  = 0;
+    }
+
+    FIRE_DAMAGE_COUNTS[getFireFilterKey(props)]++;
+
+    // Only override dummy data on residential parcels without real permit
+    if (props.UseType !== 'Residential' || props.real_permit) return;
+
+    const d = props.fire_damage;
+    if (d === 'No Damage' || d === 'Not assessed') {
+      props.permit_status = 'no_application';
+      props.intent        = null;
+    } else if (d === 'Minor (10-25%)' || d === 'Affected (1-9%)') {
+      if (!['under_review', 'no_application'].includes(props.permit_status)) {
+        props.permit_status = 'under_review';
+      }
+      if (props.intent === 'rebuild') props.intent = 'undecided';
+    }
+    // Destroyed / Major: keep existing augmented data (active rebuilders)
+  });
+
+  const d = FIRE_DAMAGE_COUNTS.fire_destroyed_major;
+  const m = FIRE_DAMAGE_COUNTS.fire_minor_affected;
+  const n = FIRE_DAMAGE_COUNTS.fire_no_damage;
+  const u = FIRE_DAMAGE_COUNTS.fire_not_assessed;
+  console.log(`DINS data loaded: ${DINS_DATA.total_matched} matched parcels`);
+  console.log(`Destroyed/Major: ${d}`);
+  console.log(`Minor/Affected: ${m}`);
+  console.log(`No damage: ${n}`);
+  console.log(`Not assessed: ${u}`);
+}
+
+function renderFireBadge(props) {
+  const d = props.fire_damage || 'Not assessed';
+  const BADGE = {
+    'Destroyed (>50%)': { cls: 'red',   text: 'Destroyed'       },
+    'Major (26-50%)':   { cls: 'red',   text: 'Major damage'    },
+    'Minor (10-25%)':   { cls: 'amber', text: 'Minor damage'    },
+    'Affected (1-9%)':  { cls: 'amber', text: 'Affected'        },
+    'No Damage':        { cls: 'green', text: 'No fire damage'  },
+    'Not assessed':     { cls: 'gray',  text: 'Outside fire zone'},
+  };
+  const bm = BADGE[d] || BADGE['Not assessed'];
+  const stLine = props.structure_type
+    ? `<div style="font-size:11px;color:#9e9e9e;margin-top:3px;">${props.structure_type}</div>`
+    : '';
+  return `<div style="margin-bottom:12px;padding:8px 10px;background:#fafafa;border:1px solid #f0f0f0;border-radius:6px;">
+    <span class="badge bg-${bm.cls}">${bm.text}</span>${stLine}
+  </div>`;
+}
+
 // ─── Map ──────────────────────────────────────────────────────────────────────
 const map = L.map('map', { preferCanvas: true }).setView([34.042, -118.522], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -553,7 +1463,15 @@ let allProps       = [];      // flat array of all augmented feature.properties
 // No fetch, no server, no file:// issues — double-click index.html works.
 
 function renderParcels(features) {
-  features.forEach(f => augment(f.properties));
+  CATEGORY_COUNTS = {};
+  features.forEach(f => {
+    const cat = categorizeParcel(f.properties);
+    f.properties.display_category = cat;
+    CATEGORY_COUNTS[cat] = (CATEGORY_COUNTS[cat] || 0) + 1;
+    if (f.properties.UseType === 'Residential') augment(f.properties);
+  });
+  joinPermitData(features);
+  tagFireDamage(features);
   allProps = features.map(f => f.properties);
 
   // renderer is declared above — must exist before geoJSON layer is created
@@ -565,12 +1483,13 @@ function renderParcels(features) {
 
   updateStats();
   updateLegend();
+  buildFilterPanel();
+  applyFilters();
   document.getElementById('loading-overlay').classList.add('hidden');
 }
 
 function loadData() {
   var features = PARCEL_DATA.features.filter(f =>
-    f.properties.UseType === 'Residential' &&
     f.properties.SitusAddress &&
     f.properties.SitusAddress.trim() !== ''
   );
@@ -581,12 +1500,14 @@ function loadData() {
 
 // ─── Style & events ───────────────────────────────────────────────────────────
 function featureStyle(feature) {
+  const cat = feature.properties.display_category || '';
+  const fillOpacity = cat === 'commercial' ? 0.3 : cat.startsWith('other_') ? 0.2 : 0.6;
   return {
     color:       '#fff',
     weight:      0.5,
     opacity:     0.8,
     fillColor:   getParcelColor(feature.properties),
-    fillOpacity: 0.6,
+    fillOpacity,
   };
 }
 
@@ -615,11 +1536,33 @@ function selectParcel(layer, feature) {
   openSidebar(feature.properties);
 }
 
-// Redraw all parcels when tab changes, then re-highlight selection
+// Redraw all parcels when tab changes — applyFilters handles style + visibility
 function redrawLayer() {
   if (!geoLayer) return;
-  geoLayer.setStyle(featureStyle);
-  if (selectedLayer) selectedLayer.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+  applyFilters();
+}
+
+function applyFilters() {
+  if (!geoLayer) return;
+  geoLayer.eachLayer(layer => {
+    const props   = layer.feature.properties;
+    const cat     = props.display_category || 'other_misc';
+    const fireKey = getFireFilterKey(props);
+    const visible = FILTER_STATE[cat] !== false && FILTER_STATE[fireKey] !== false;
+    if (visible) {
+      layer.setStyle(featureStyle(layer.feature));
+      layer.options.interactive = true;
+    } else {
+      layer.setStyle({ opacity: 0, fillOpacity: 0 });
+      layer.options.interactive = false;
+    }
+  });
+  if (selectedLayer && activeFeature) {
+    const cat = activeFeature.properties.display_category || 'other_misc';
+    if (FILTER_STATE[cat] !== false) {
+      selectedLayer.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+    }
+  }
 }
 
 // ─── Stats bar ────────────────────────────────────────────────────────────────
@@ -633,17 +1576,33 @@ function setStats(pairs) {
 }
 
 function updateStats() {
-  const n = allProps.length;
+  const res = allProps.filter(p => (p.display_category || '').startsWith('residential'));
+  const n   = res.length;
   for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).style.color = '';
+
+  // Update stats-note
+  const statsNote = document.getElementById('stats-note');
+  if (statsNote) {
+    if (activeTab === 'permit' && FIRE_DAMAGE_COUNTS.fire_destroyed_major !== undefined) {
+      const dm = FIRE_DAMAGE_COUNTS.fire_destroyed_major;
+      const ma = FIRE_DAMAGE_COUNTS.fire_minor_affected;
+      const nd = FIRE_DAMAGE_COUNTS.fire_no_damage;
+      statsNote.textContent =
+        `Fire zone: ${dm.toLocaleString()} destroyed/major · ${ma.toLocaleString()} minor/affected · ${nd.toLocaleString()} no damage`;
+    } else {
+      statsNote.textContent = 'Residential parcels only';
+    }
+  }
+
   switch (activeTab) {
 
     case 'permit': {
-      const withApp = allProps.filter(p =>
+      const withApp = res.filter(p =>
         ['approved','under_construction','complete'].includes(p.permit_status)).length;
-      const inConst = allProps.filter(p => p.permit_status === 'under_construction').length;
-      const done    = allProps.filter(p => p.permit_status === 'complete').length;
+      const inConst = res.filter(p => p.permit_status === 'under_construction').length;
+      const done    = res.filter(p => p.permit_status === 'complete').length;
       setStats([
-        [n.toLocaleString(),           'Residential parcels loaded'],
+        [n.toLocaleString(),           'Residential parcels'],
         [pct(withApp, n) + '%',        'With permit application'],
         [pct(inConst, n) + '%',        'Under construction'],
         [pct(done, n) + '%',           'Permits complete'],
@@ -652,10 +1611,10 @@ function updateStats() {
     }
 
     case 'intent': {
-      const rebuild   = allProps.filter(p => p.intent === 'rebuild').length;
-      const undecided = allProps.filter(p => p.intent === 'undecided').length;
-      const sold      = allProps.filter(p => p.intent === 'sold').length;
-      const nullI     = allProps.filter(p => p.intent === null).length;
+      const rebuild   = res.filter(p => p.intent === 'rebuild').length;
+      const undecided = res.filter(p => p.intent === 'undecided').length;
+      const sold      = res.filter(p => p.intent === 'sold').length;
+      const nullI     = res.filter(p => p.intent === null).length;
       setStats([
         [pct(rebuild, n)   + '%', 'Planning to rebuild'],
         [pct(undecided, n) + '%', 'Undecided'],
@@ -682,9 +1641,9 @@ function updateStats() {
     }
 
     case 'investor': {
-      const soldDev   = allProps.filter(p => p.owner_type === 'sold_developer').length;
-      const soldIndiv = allProps.filter(p => p.owner_type === 'sold_individual').length;
-      const indiv     = allProps.filter(p => p.owner_type === 'individual').length;
+      const soldDev   = res.filter(p => p.owner_type === 'sold_developer').length;
+      const soldIndiv = res.filter(p => p.owner_type === 'sold_individual').length;
+      const indiv     = res.filter(p => p.owner_type === 'individual').length;
       setStats([
         [pct(indiv, n)     + '%', 'Individual owned'],
         [pct(soldIndiv, n) + '%', 'Sold to individual'],
@@ -746,6 +1705,123 @@ legendCtrl.onAdd = function() {
 };
 legendCtrl.addTo(map);
 
+// Filter control — positioned above legend (added after, so stacks on top)
+const filterCtrl = L.control({ position: 'bottomleft' });
+filterCtrl.onAdd = function() {
+  this._div = L.DomUtil.create('div', 'legend-panel');
+  L.DomEvent.disableClickPropagation(this._div);
+  L.DomEvent.disableScrollPropagation(this._div);
+  return this._div;
+};
+filterCtrl.addTo(map);
+
+// Color-by toggle — only visible on permit tab
+const colorByCtrl = L.control({ position: 'topright' });
+colorByCtrl.onAdd = function() {
+  this._div = L.DomUtil.create('div', 'color-by-ctrl');
+  L.DomEvent.disableClickPropagation(this._div);
+  L.DomEvent.disableScrollPropagation(this._div);
+  this._div.style.display = 'none';
+  this._render();
+  return this._div;
+};
+colorByCtrl._render = function() {
+  const label = colorByMode === 'damage' ? 'Fire damage' : 'Permit status';
+  this._div.innerHTML = `
+    <div class="color-by-btn" id="cb-toggle">Color by: <strong>${label}</strong> &#9660;</div>
+    <div class="color-by-dropdown" id="cb-dropdown" style="display:none;">
+      <div class="color-by-opt${colorByMode === 'permit' ? ' active' : ''}" data-mode="permit">Permit status</div>
+      <div class="color-by-opt${colorByMode === 'damage' ? ' active' : ''}" data-mode="damage">Fire damage</div>
+    </div>`;
+  const toggle   = this._div.querySelector('#cb-toggle');
+  const dropdown = this._div.querySelector('#cb-dropdown');
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', function hide() {
+    dropdown.style.display = 'none';
+  }, { once: true });
+  this._div.querySelectorAll('.color-by-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      colorByMode = opt.dataset.mode;
+      dropdown.style.display = 'none';
+      colorByCtrl._render();
+      applyFilters();
+    });
+  });
+};
+colorByCtrl.addTo(map);
+
+function updateColorByCtrlVisibility() {
+  if (colorByCtrl._div) {
+    colorByCtrl._div.style.display = activeTab === 'permit' ? 'block' : 'none';
+  }
+}
+
+function buildFilterPanel() {
+  if (!filterCtrl._div) return;
+  const GROUPS = [
+    { label: 'Residential', items: [
+      { cat: 'residential_single',  label: 'Single family'    },
+      { cat: 'residential_multi',   label: 'Multi-family'     },
+      { cat: 'residential_mobile',  label: 'Mobile homes'     },
+    ]},
+    { label: 'Commercial', items: [
+      { cat: 'commercial',          label: 'Commercial'       },
+    ]},
+    { label: 'Other', items: [
+      { cat: 'other_government',    label: 'Government'          },
+      { cat: 'other_industrial',    label: 'Industrial'          },
+      { cat: 'other_institutional', label: 'Institutional'       },
+      { cat: 'other_recreational',  label: 'Recreational'        },
+      { cat: 'other_farm',          label: 'Farm / Agricultural' },
+      { cat: 'other_misc',          label: 'Miscellaneous / None'},
+    ]},
+  ];
+  const FIRE_ITEMS = [
+    { cat: 'fire_destroyed_major', label: 'Destroyed / Major' },
+    { cat: 'fire_minor_affected',  label: 'Minor / Affected'  },
+    { cat: 'fire_no_damage',       label: 'No damage'         },
+    { cat: 'fire_not_assessed',    label: 'Not assessed'      },
+  ];
+
+  let html = '<div class="legend-title">Show layers</div>';
+  GROUPS.forEach(({ label, items }) => {
+    html += `<div class="filter-group-hdr">${label}</div>`;
+    items.forEach(({ cat, label: lbl }) => {
+      const chk   = FILTER_STATE[cat] ? ' checked' : '';
+      const count = (CATEGORY_COUNTS[cat] || 0).toLocaleString();
+      html += `<label class="filter-row"><input type="checkbox" data-cat="${cat}"${chk}> ${lbl} <span class="filter-count">${count}</span></label>`;
+    });
+  });
+
+  html += '<div class="filter-group-hdr">Fire damage</div>';
+  FIRE_ITEMS.forEach(({ cat, label: lbl }) => {
+    const chk   = FILTER_STATE[cat] ? ' checked' : '';
+    const count = (FIRE_DAMAGE_COUNTS[cat] || 0).toLocaleString();
+    html += `<label class="filter-row"><input type="checkbox" data-cat="${cat}"${chk}> ${lbl} <span class="filter-count">${count}</span></label>`;
+  });
+
+  html += '<a class="filter-reset" id="filter-reset-link">Reset to default</a>';
+  filterCtrl._div.innerHTML = html;
+
+  filterCtrl._div.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      FILTER_STATE[cb.dataset.cat] = cb.checked;
+      applyFilters();
+    });
+  });
+  const resetLink = filterCtrl._div.querySelector('#filter-reset-link');
+  if (resetLink) resetLink.addEventListener('click', () => {
+    Object.assign(FILTER_STATE, FILTER_DEFAULTS);
+    filterCtrl._div.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!FILTER_DEFAULTS[cb.dataset.cat];
+    });
+    applyFilters();
+  });
+}
+
 function updateLegend() {
   const def = LEGEND_DEFS[activeTab];
   legendCtrl._div.innerHTML =
@@ -801,6 +1877,15 @@ function insureBadge(v) {
 
 // ─── Sidebar renderers (per tab) ──────────────────────────────────────────────
 function renderPermit(p) {
+  if (p.real_permit) return renderRealPermit(p);
+  const noActivity = p.fire_damage === 'No Damage' || p.fire_damage === 'Not assessed';
+  if (noActivity) {
+    const msg = p.fire_damage === 'No Damage'
+      ? 'This property was not damaged in the 2025 wildfire.'
+      : 'This property is outside the fire assessment zone.';
+    return `<div style="padding:14px 12px;background:#f9f9f9;border-radius:6px;font-size:12px;color:#9e9e9e;line-height:1.5;text-align:center;margin-bottom:12px;">${msg}</div>
+    ${renderMaterialsSection(p)}`;
+  }
   const si   = PERMIT_STAGES.findIndex(s => s.key === p.permit_status);
   const days = p.days_in_review || 1;
   let r1 = '', r2 = '';
@@ -823,22 +1908,103 @@ function renderPermit(p) {
     <div class="sb-divider"></div>
     ${srow('Permit status', permitBadge(p.permit_status))}
     ${srow('Permit type',   badge('blue', 'New build'))}
-    ${srow('Owner type',    badge(p.owner_type === 'sold_developer' ? 'red' : p.owner_type === 'sold_individual' ? 'orange' : 'green', fmt(p.owner_type)))}`;
+    ${srow('Owner type',    badge(p.owner_type === 'sold_developer' ? 'red' : p.owner_type === 'sold_individual' ? 'orange' : 'green', fmt(p.owner_type)))}
+    ${renderMaterialsSection(p)}`;
+}
+
+function renderRealPermit(p) {
+  const rp = p.real_permit;
+  const si = PERMIT_STAGES.findIndex(s => s.key === (rp.construction_status || 'no_application'));
+  let r1 = '', r2 = '';
+  PERMIT_STAGES.forEach((s, i) => {
+    const cls  = i < si ? 'p-done' : i === si ? 'p-active' : 'p-future';
+    const icon = i < si ? '&#10003;' : String(i + 1);
+    if (i > 0) {
+      r1 += `<div class="p-conn ${i <= si ? 'p-conn-done' : 'p-conn-future'}"></div>`;
+      r2 += `<div class="p-lsp"></div>`;
+    }
+    r1 += `<div class="p-node ${cls}">${icon}</div>`;
+    r2 += `<div class="p-lcell"><span${i === si ? ' class="p-lbl-on"' : ''}>${s.short}</span></div>`;
+  });
+
+  const ROLE_CLR = {
+    Contractor: '#378ADD', Engineer: '#7F77DD', Architect: '#1D9E75',
+    Owner: '#888780',      Applicant: '#888780', Inspector: '#BA7517', Other: '#888780',
+  };
+  function rolePill(role) {
+    const c = ROLE_CLR[role] || '#888780';
+    return `<span style="padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;color:#fff;background:${c};flex-shrink:0;white-space:nowrap;">${role}</span>`;
+  }
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  let teamHtml = '';
+  if (rp.contacts && rp.contacts.length > 0) {
+    teamHtml = rp.contacts.map(c =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f5f5f5;">
+        ${rolePill(c.role || 'Other')}
+        <span style="font-size:12px;color:#333;flex:1;">${esc(c.name)}</span>
+        ${c.license_number ? `<span style="font-size:10px;color:#9e9e9e;font-family:monospace;">${esc(c.license_number)}</span>` : ''}
+      </div>`
+    ).join('');
+  } else {
+    teamHtml = '<p style="font-size:12px;color:#9e9e9e;margin:8px 0;">No contacts listed</p>';
+  }
+
+  function prow(lbl, val) {
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;gap:8px;">
+      <span style="color:#757575;flex-shrink:0;">${lbl}</span>
+      <span style="color:#333;text-align:right;">${val}</span>
+    </div>`;
+  }
+
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;">
+      <span style="color:#1D9E75;font-weight:700;font-size:12px;">&#10003; Real permit data</span>
+      ${rp.permit_number ? `<span style="font-size:11px;color:#555;margin-left:auto;font-family:monospace;">${esc(rp.permit_number)}</span>` : ''}
+    </div>
+    <div class="p-wrap">
+      <div class="p-row1">${r1}</div>
+      <div class="p-row2">${r2}</div>
+    </div>
+    <div class="sb-divider"></div>
+    <div style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 12px;background:#fafafa;font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;letter-spacing:0.5px;">Permit details</div>
+      <div style="padding:2px 12px 10px;">
+        ${prow('Permit #', `<span style="font-family:monospace;font-size:11px;">${esc(rp.permit_number) || '—'}</span>`)}
+        ${prow('Filed', esc(rp.date_filed) || '—')}
+        ${prow('Issued', rp.date_issued ? esc(rp.date_issued) : badge('gray', 'Pending'))}
+        ${prow('Finaled', rp.date_finaled ? esc(rp.date_finaled) : badge('gray', 'Not yet finaled'))}
+        <div style="padding:5px 0 3px;border-bottom:1px solid #f5f5f5;">
+          <span style="color:#757575;font-size:12px;">Type</span>
+          <div style="color:#333;font-size:11px;line-height:1.4;margin-top:2px;">${esc(rp.permit_type) || '—'}</div>
+        </div>
+        ${rp.notes ? `<div style="margin-top:8px;padding:8px;background:#f9f9f9;border-radius:4px;font-size:11px;color:#555;line-height:1.5;">${esc(rp.notes)}</div>` : ''}
+      </div>
+    </div>
+    <div style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 12px;background:#fafafa;font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;letter-spacing:0.5px;">Project team</div>
+      <div style="padding:2px 12px 10px;">${teamHtml}</div>
+    </div>
+    ${renderMaterialsSection(p)}`;
 }
 
 function renderIntent(p) {
+  const noActivity = p.fire_damage === 'No Damage' || p.fire_damage === 'Not assessed';
   if (p.intent == null) {
     return `
       <div style="display:flex;flex-direction:column;align-items:center;padding:28px 12px 16px;gap:14px;text-align:center;">
         <span class="badge bg-gray" style="font-size:13px;padding:6px 18px;border-radius:20px;">No declaration</span>
         <p style="font-size:12px;color:#9e9e9e;line-height:1.6;margin:0;max-width:210px;">
-          Help us understand your plans so resources can be directed to this area.
+          ${noActivity ? 'This property was not in the fire zone.' : 'Help us understand your plans so resources can be directed to this area.'}
         </p>
       </div>
-      <button class="declare-btn" id="open-declare">Declare your intention</button>`;
+      ${!noActivity ? '<button class="declare-btn" id="open-declare">Declare your intention</button>' : ''}`;
   }
   return `
     ${srow('Rebuild intent', intentBadge(p.intent))}
+    ${renderMaterialsSummary(p)}
     ${srow('Residence type', badge('gray', fmt(p.residence_type)))}
     ${srow('Owner age', badge('blue', fmt(p.owner_age_bracket)))}
     ${srow('Children in household', badge(p.has_kids ? 'blue' : 'gray', p.has_kids ? 'Yes' : 'No'))}
@@ -910,6 +2076,37 @@ function renderInvestor(p) {
     </div>`;
 }
 
+function renderCommercial(p) {
+  const sqft     = Math.round((p.Shape__Area || 0) * 10.764);
+  const estValue = sqft > 0 ? (sqft * 300 / 1e6).toFixed(1) : '—';
+  return `
+    <div style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 12px;background:#fafafa;font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;letter-spacing:0.5px;">Property information</div>
+      <div style="padding:2px 12px 10px;">
+        ${srow('Use type', badge('gray', 'Commercial'))}
+        ${srow('Sub-type', `<span style="font-size:12px;color:#333;">${p.UseDescription || '—'}</span>`)}
+        ${sqft > 0 ? srow('Est. pre-fire value', `<span style="font-weight:700;color:#1a237e;">$${estValue}M</span>`) : ''}
+      </div>
+    </div>
+    <div style="padding:10px 12px;background:#f9f9f9;border-radius:6px;font-size:12px;color:#9e9e9e;line-height:1.5;">
+      Commercial property — rebuild tracking coming in a future update
+    </div>`;
+}
+
+function renderOther(p) {
+  return `
+    <div style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 12px;background:#fafafa;font-size:10px;font-weight:700;color:#9e9e9e;text-transform:uppercase;letter-spacing:0.5px;">Property information</div>
+      <div style="padding:2px 12px 10px;">
+        ${srow('Classification', badge('gray', p.UseType || '—'))}
+        ${srow('Description', `<span style="font-size:12px;color:#333;">${p.UseDescription || '—'}</span>`)}
+      </div>
+    </div>
+    <div style="padding:10px 12px;background:#f9f9f9;border-radius:6px;font-size:12px;color:#9e9e9e;line-height:1.5;">
+      This parcel type is not tracked for residential rebuild activity
+    </div>`;
+}
+
 // ─── Sidebar controller ───────────────────────────────────────────────────────
 function openSidebar(props) {
   activeSchoolProps = null;
@@ -921,17 +2118,65 @@ function openSidebar(props) {
   const useBadge = document.getElementById('sb-use-badge');
   useBadge.textContent = props.UseDescription || props.UseType || '';
 
-  const body = document.getElementById('sb-body');
-  switch (activeTab) {
-    case 'permit':   body.innerHTML = renderPermit(props);   break;
-    case 'intent':   body.innerHTML = renderIntent(props);   break;
-    case 'infra':    body.innerHTML = renderInfra(props);    break;
-    case 'investor': body.innerHTML = renderInvestor(props); break;
+  const body    = document.getElementById('sb-body');
+  const cat     = props.display_category || '';
+  const fireBadge = renderFireBadge(props);
+
+  if (cat === 'commercial') {
+    body.innerHTML = fireBadge + renderCommercial(props);
+    return;
   }
+  if (cat.startsWith('other_')) {
+    body.innerHTML = fireBadge + renderOther(props);
+    return;
+  }
+
+  // Residential — full tab-based rendering
+  let tabContent = '';
+  switch (activeTab) {
+    case 'permit':   tabContent = renderPermit(props);   break;
+    case 'intent':   tabContent = renderIntent(props);   break;
+    case 'infra':    tabContent = renderInfra(props);    break;
+    case 'investor': tabContent = renderInvestor(props); break;
+  }
+  body.innerHTML = fireBadge + tabContent;
 
   // Wire "Declare" button if present
   const btn = body.querySelector('#open-declare');
   if (btn) btn.addEventListener('click', () => openDeclareModal(props));
+
+  // Wire materials section toggle
+  const matToggle = body.querySelector('#mat-section-toggle');
+  if (matToggle) {
+    matToggle.addEventListener('click', () => {
+      const mb = body.querySelector('#mat-section-body');
+      const mc = body.querySelector('#mat-chevron');
+      if (!mb) return;
+      const open = mb.classList.toggle('open');
+      if (mc) mc.classList.toggle('open', open);
+    });
+  }
+  // Wire materials update button (pre-filled)
+  const matUpdateBtn = body.querySelector('#mat-update-btn');
+  if (matUpdateBtn) matUpdateBtn.addEventListener('click', () =>
+    openMaterialsForm(props, getMaterials(props.APN)));
+  // Wire materials add link (new submission)
+  const matAddLink = body.querySelector('#mat-add-link');
+  if (matAddLink) matAddLink.addEventListener('click', () =>
+    openMaterialsForm(props, null));
+  // Intent tab: "See full materials" — switch to permit tab
+  const seeLink = body.querySelector('#mat-intent-see');
+  if (seeLink) seeLink.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tab="permit"]').classList.add('active');
+    activeTab = 'permit';
+    redrawLayer(); updateStats(); updateLegend();
+    openSidebar(props);
+  });
+  // Intent tab: "Add materials" link
+  const addLink = body.querySelector('#mat-intent-add');
+  if (addLink) addLink.addEventListener('click', () =>
+    openMaterialsForm(props, null));
 }
 
 document.getElementById('close-btn').addEventListener('click', () => {
@@ -945,7 +2190,8 @@ document.getElementById('close-btn').addEventListener('click', () => {
 });
 
 // ─── Declaration modal ────────────────────────────────────────────────────────
-let modalProps = null;
+let modalProps    = null;
+let materialProps = null;
 
 function openDeclareModal(props) {
   modalProps = props;
@@ -954,8 +2200,12 @@ function openDeclareModal(props) {
   const form = document.getElementById('declare-form');
   form.reset();
   form.style.display = 'block';
+  document.getElementById('modal-title').textContent     = 'Declare your intention';
   document.getElementById('modal-confirm').style.display = 'none';
   document.getElementById('modal-footer').style.display  = 'block';
+  document.getElementById('materials-form-wrap').style.display = 'none';
+  document.getElementById('materials-footer').style.display    = 'none';
+  document.getElementById('materials-confirm').style.display   = 'none';
   document.getElementById('char-count').textContent      = '0 / 140';
 
   // Pre-select current intent
@@ -979,7 +2229,12 @@ function openDeclareModal(props) {
 
 function closeDeclareModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  modalProps = null;
+  modalProps     = null;
+  materialProps  = null;
+  document.getElementById('modal-title').textContent           = 'Declare your intention';
+  document.getElementById('materials-form-wrap').style.display = 'none';
+  document.getElementById('materials-footer').style.display    = 'none';
+  document.getElementById('materials-confirm').style.display   = 'none';
 }
 
 document.getElementById('modal-close').addEventListener('click', closeDeclareModal);
@@ -1028,6 +2283,7 @@ document.getElementById('declare-form').addEventListener('submit', e => {
   document.getElementById('confirm-msg').innerHTML =
     `Recorded. Your neighbors can see that <strong>${dec}</strong> of ` +
     `<strong>${block.length}</strong> parcels on your block have declared intentions.`;
+  materialProps = p;
   form.style.display = 'none';
   document.getElementById('modal-footer').style.display = 'none';
   document.getElementById('modal-confirm').style.display = 'block';
@@ -1137,14 +2393,14 @@ function placeSchoolPulse(props) {
 function cityGroup(city) {
   if (city === 'Pacific Palisades') return 'Pacific Palisades';
   if (city === 'Malibu')            return 'Malibu';
-  return 'Canyon / Topanga / Westside';
+  return 'Canyon / Topanga';
 }
 
 function buildSchoolListHTML() {
   sortedSchoolFeatures = [...schoolFeatures].sort((a, b) =>
     a.properties.name.localeCompare(b.properties.name)
   );
-  const groupOrder = ['Pacific Palisades', 'Malibu', 'Canyon / Topanga / Westside'];
+  const groupOrder = ['Pacific Palisades', 'Malibu', 'Canyon / Topanga'];
   const grouped    = {};
   groupOrder.forEach(g => { grouped[g] = []; });
   sortedSchoolFeatures.forEach((f, i) => grouped[cityGroup(f.properties.city || '')].push({ f, i }));
@@ -1240,7 +2496,7 @@ function renderSchoolDetail(p) {
   });
   const cat2html = p.cat2 ? badge('blue', p.cat2) : '';
   const cat3html = p.cat3 ? ' ' + badge('gray', p.cat3) : '';
-  const enroll   = p.enrollment != null ? Number(p.enrollment).toLocaleString() + ' students' : '—';
+  const enroll   = p.enrollment != null ? Number(p.enrollment).toLocaleString() + ' students (pre-fire)' : '—';
   return `
     ${cat2html || cat3html ? `<div style="margin-bottom:10px;">${cat2html}${cat3html}</div>` : ''}
     ${srow('Enrollment', `<span style="font-weight:600;">${enroll}</span>`)}
@@ -1272,6 +2528,228 @@ function openSchoolSidebar(props) {
 }
 
 
+// ─── Building materials helpers ──────────────────────────────────────────────
+function getMaterials(apn) {
+  return MATERIALS_DATA[String(apn || '')] || null;
+}
+
+function renderMaterialsSection(props) {
+  const mat = getMaterials(props.APN);
+  const canAdd = props.intent === 'rebuild';
+
+  if (mat) {
+    const fmtList = v => Array.isArray(v) ? v.join(', ') : (v || '—');
+    const rows = [
+      ['Structure',        mat.structure],
+      ['Roof',             mat.roof],
+      ['Exterior walls',   mat.exterior_walls],
+      ['Windows',          mat.windows],
+      ['Window frames',    mat.window_frames],
+      ['Fire suppression', fmtList(mat.suppression)],
+      ['Defensible space', fmtList(mat.defensible_space)],
+      ...(mat.notes ? [['Notes', mat.notes]] : []),
+    ].map(([l, v]) =>
+      `<div class="mat-row"><span class="mat-lbl">${l}</span><span class="mat-val">${v || '—'}</span></div>`
+    ).join('');
+    return `
+      <div class="mat-section">
+        <div class="mat-section-hdr" id="mat-section-toggle">
+          <div class="mat-section-title">
+            <span style="color:#1D9E75;">&#10003;</span> Building materials
+            <span class="mat-section-date">&#183; ${mat.submitted_date}</span>
+          </div>
+          <span class="mat-chevron" id="mat-chevron">&#9660;</span>
+        </div>
+        <div class="mat-section-body" id="mat-section-body">
+          ${rows}
+          <p class="mat-footnote">Submitted by verified owner &#183; ${mat.submitted_date}</p>
+          <button class="mat-update-btn" id="mat-update-btn">Update building materials</button>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="mat-section">
+      <div class="mat-section-hdr" id="mat-section-toggle">
+        <div class="mat-section-title">
+          <span style="color:#9e9e9e;">&#8212;</span> Building materials
+        </div>
+        <span class="mat-chevron" id="mat-chevron">&#9660;</span>
+      </div>
+      <div class="mat-section-body" id="mat-section-body">
+        <p style="font-size:12px;color:#9e9e9e;margin-bottom:8px;">No materials submitted yet</p>
+        ${canAdd ? '<span class="mat-add-link" id="mat-add-link">Are you the owner? Add your building materials</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function renderMaterialsSummary(props) {
+  if (props.intent !== 'rebuild') return '';
+  const mat = getMaterials(props.APN);
+  if (mat) {
+    return `<div class="mat-intent-row">
+      Building with: <strong>${mat.structure}</strong>
+      &nbsp;<span class="mat-intent-lnk" id="mat-intent-see">See full materials &rarr;</span>
+    </div>`;
+  }
+  return `<div class="mat-intent-row">
+    Building materials not yet submitted
+    &nbsp;<span class="mat-intent-lnk" id="mat-intent-add">Add materials &rarr;</span>
+  </div>`;
+}
+
+function openMaterialsForm(props, prefill) {
+  materialProps = props;
+  document.getElementById('modal-title').textContent    = 'Building materials';
+  document.getElementById('modal-parcel-addr').textContent =
+    (props.SitusAddress || '') + (props.APN ? ' · APN ' + props.APN : '');
+
+  document.getElementById('declare-form').style.display          = 'none';
+  document.getElementById('modal-footer').style.display          = 'none';
+  document.getElementById('modal-confirm').style.display         = 'none';
+  document.getElementById('materials-form-wrap').style.display   = 'block';
+  document.getElementById('materials-footer').style.display      = 'block';
+  document.getElementById('materials-confirm').style.display     = 'none';
+
+  const matForm = document.getElementById('materials-form');
+  matForm.reset();
+  document.querySelectorAll('.other-inp').forEach(i => { i.style.display = 'none'; i.value = ''; });
+  document.getElementById('mat-char-count').textContent = '0 / 280';
+  const notesEl = document.getElementById('mat-notes');
+  if (notesEl) notesEl.value = '';
+
+  if (prefill) {
+    const radioMap = [
+      { name: 'mat_structure', key: 'structure' },
+      { name: 'mat_roof',      key: 'roof' },
+      { name: 'mat_walls',     key: 'exterior_walls' },
+      { name: 'mat_windows',   key: 'windows' },
+      { name: 'mat_frames',    key: 'window_frames' },
+    ];
+    radioMap.forEach(({ name, key }) => {
+      const val = prefill[key]; if (!val) return;
+      let found = false;
+      matForm.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+        if (r.value === val) { r.checked = true; found = true; }
+      });
+      if (!found) {
+        const oth = matForm.querySelector(`input[name="${name}"][value="Other"]`);
+        if (oth) {
+          oth.checked = true;
+          const inp = document.getElementById(name.replace('mat_', 'mat-') + '-other');
+          if (inp) { inp.style.display = 'block'; inp.value = val; }
+        }
+      }
+    });
+    const cbMap = [
+      { name: 'mat_suppression', key: 'suppression' },
+      { name: 'mat_dspace',      key: 'defensible_space' },
+    ];
+    cbMap.forEach(({ name, key }) => {
+      const vals = Array.isArray(prefill[key]) ? prefill[key] : [prefill[key]].filter(Boolean);
+      vals.forEach(v => {
+        matForm.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
+          if (cb.value === v) cb.checked = true;
+        });
+      });
+    });
+    if (notesEl && prefill.notes) {
+      notesEl.value = prefill.notes;
+      document.getElementById('mat-char-count').textContent = prefill.notes.length + ' / 280';
+    }
+  }
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('materials-form-wrap').scrollTop = 0;
+}
+
+// Wire "Other" show/hide for radio groups
+['mat_structure','mat_roof','mat_walls','mat_windows','mat_frames'].forEach(name => {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+    radio.addEventListener('change', () => {
+      const inp = document.getElementById(name.replace('mat_', 'mat-') + '-other');
+      if (inp) inp.style.display = radio.value === 'Other' && radio.checked ? 'block' : 'none';
+    });
+  });
+});
+// Wire "Other" show/hide for checkbox groups
+['mat_suppression','mat_dspace'].forEach(name => {
+  const cb = document.querySelector(`input[name="${name}"][value="Other"]`);
+  if (cb) cb.addEventListener('change', () => {
+    const inp = document.getElementById(name.replace('mat_', 'mat-') + '-other');
+    if (inp) inp.style.display = cb.checked ? 'block' : 'none';
+  });
+});
+
+// Materials notes char counter
+document.getElementById('mat-notes').addEventListener('input', function() {
+  document.getElementById('mat-char-count').textContent = this.value.length + ' / 280';
+});
+
+// "Add materials now" button (in intent confirmation prompt)
+document.getElementById('mat-add-btn').addEventListener('click', () => {
+  if (materialProps) openMaterialsForm(materialProps, getMaterials(materialProps.APN));
+});
+
+// Back button in materials form
+document.getElementById('mat-back-btn').addEventListener('click', () => {
+  document.getElementById('materials-form-wrap').style.display = 'none';
+  document.getElementById('materials-footer').style.display    = 'none';
+  document.getElementById('modal-confirm').style.display       = 'block';
+  document.getElementById('modal-title').textContent           = 'Declare your intention';
+  if (materialProps) {
+    document.getElementById('modal-parcel-addr').textContent =
+      (materialProps.SitusAddress || '') + (materialProps.APN ? ' · APN ' + materialProps.APN : '');
+  }
+});
+
+// Materials form submit
+document.getElementById('materials-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = materialProps; if (!p) return;
+  const f = e.target;
+
+  function radioVal(name) {
+    const el = f.querySelector(`input[name="${name}"]:checked`);
+    if (!el) return '';
+    if (el.value === 'Other') {
+      const inp = document.getElementById(name.replace('mat_', 'mat-') + '-other');
+      return inp && inp.value.trim() ? inp.value.trim() : 'Other';
+    }
+    return el.value;
+  }
+  function checkVals(name) {
+    return [...f.querySelectorAll(`input[name="${name}"]:checked`)].map(cb => {
+      if (cb.value === 'Other') {
+        const inp = document.getElementById(name.replace('mat_', 'mat-') + '-other');
+        return inp && inp.value.trim() ? inp.value.trim() : 'Other';
+      }
+      return cb.value;
+    });
+  }
+
+  MATERIALS_DATA[String(p.APN || '')] = {
+    submitted_date:  new Date().toISOString().split('T')[0],
+    structure:        radioVal('mat_structure'),
+    roof:             radioVal('mat_roof'),
+    exterior_walls:   radioVal('mat_walls'),
+    windows:          radioVal('mat_windows'),
+    window_frames:    radioVal('mat_frames'),
+    suppression:      checkVals('mat_suppression'),
+    defensible_space: checkVals('mat_dspace'),
+    notes:            (document.getElementById('mat-notes') || {}).value || '',
+  };
+
+  document.getElementById('materials-form-wrap').style.display = 'none';
+  document.getElementById('materials-footer').style.display    = 'none';
+  document.getElementById('materials-confirm').style.display   = 'block';
+
+  if (activeFeature && activeFeature.properties === p) openSidebar(p);
+});
+
+// Materials confirmation "Done"
+document.getElementById('mat-confirm-close').addEventListener('click', closeDeclareModal);
+
 // ─── Tab switching ────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -1281,6 +2759,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     redrawLayer();
     updateStats();
     updateLegend();
+    updateColorByCtrlVisibility();
     if (activeTab === 'infra') {
       showSchoolMarkers();
     } else {
@@ -1295,8 +2774,98 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
+// ─── Auth & disclaimer ────────────────────────────────────────────────────────
+function checkPassword(input) {
+  return input === atob('dWNsYWFuZGVyc29uY2Fwc3RvbmU=');
+}
+
+function revealApp() {
+  document.getElementById('proto-banner').style.display = 'block';
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  loadData();
+}
+
+function openDisclaimerModal() {
+  document.getElementById('disclaimer-modal').style.display = 'flex';
+}
+
+function closeDisclaimerModal() {
+  document.getElementById('disclaimer-modal').style.display = 'none';
+}
+
+// Password gate logic
+const pwInput = document.getElementById('pw-input');
+const pwError = document.getElementById('pw-error');
+
+function showPwError(msg) {
+  pwError.textContent = msg;
+  pwError.style.display = 'block';
+  pwInput.classList.add('pw-shake');
+  pwInput.value = '';
+  setTimeout(() => pwInput.classList.remove('pw-shake'), 600);
+}
+
+function attemptLogin() {
+  if (checkPassword(pwInput.value.trim())) {
+    sessionStorage.setItem('palis_authed', '1');
+    const gate = document.getElementById('pw-gate');
+    gate.style.transition = 'opacity 0.3s';
+    gate.style.opacity = '0';
+    setTimeout(() => { gate.style.display = 'none'; openDisclaimerModal(); }, 300);
+  } else {
+    showPwError('Incorrect access code. Please try again.');
+  }
+}
+
+document.getElementById('pw-btn').addEventListener('click', attemptLogin);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+
+// Disclaimer logic
+document.getElementById('disc-accept').addEventListener('click', () => {
+  sessionStorage.setItem('palis_disclaimed', '1');
+  closeDisclaimerModal();
+  revealApp();
+});
+
+document.getElementById('disc-decline').addEventListener('click', () => {
+  sessionStorage.removeItem('palis_authed');
+  sessionStorage.removeItem('palis_disclaimed');
+  closeDisclaimerModal();
+  const gate = document.getElementById('pw-gate');
+  gate.style.transition = '';
+  gate.style.opacity    = '1';
+  gate.style.display    = 'flex';
+  showPwError('You must accept the disclaimer to access this demo.');
+});
+
+// Backdrop click closes disclaimer only when already in the app
+document.getElementById('disclaimer-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('disclaimer-modal') &&
+      sessionStorage.getItem('palis_disclaimed')) {
+    closeDisclaimerModal();
+  }
+});
+
+// "?" button and sidebar footer link
+document.getElementById('disclaimer-btn').addEventListener('click', openDisclaimerModal);
+document.getElementById('sb-disclaimer-link').addEventListener('click', openDisclaimerModal);
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-loadData();
+(function boot() {
+  if (sessionStorage.getItem('palis_disclaimed')) {
+    // Already authenticated + accepted this session — go straight to app
+    document.getElementById('proto-banner').style.display = 'block';
+    loadData();
+  } else {
+    // Hide loading overlay; show gate or disclaimer
+    document.getElementById('loading-overlay').classList.add('hidden');
+    if (sessionStorage.getItem('palis_authed')) {
+      openDisclaimerModal();
+    } else {
+      document.getElementById('pw-gate').style.display = 'flex';
+    }
+  }
+}());
 </script>
 </body>
 </html>

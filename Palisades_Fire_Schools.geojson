@@ -1,0 +1,345 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 4299,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.531117229765,
+          34.04787583996
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4299,
+        "cat1": "Education",
+        "cat2": "High Schools",
+        "cat3": "Charter Schools",
+        "name": "Palisades Charter High",
+        "label": "Palisades Charter High",
+        "addrln1": "15777 Bowdoin Street",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-3523",
+        "organization": "Los Angeles Unified",
+        "source": "California Department of Education (CDE): https://www.cde.ca.gov/schooldirectory/ (school listing), and https://lacounty.maps.arcgis.com/home/item.html?id=61a4260e68b14a5ab91daf27d4415e7d (enrollment and improved location accuracy)",
+        "source_id": "19647331995836",
+        "source_date": "8/8/2024",
+        "latitude": 34.04787584,
+        "longitude": -118.53111723,
+        "enrollment": 2991,
+        "label_class": "Charter Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "major"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 4361,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.512194230486,
+          34.0317468397305
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4361,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Charter Schools",
+        "name": "Canyon Charter Elementary",
+        "label": "Canyon Charter Elementary",
+        "addrln1": "421 Entrada Drive",
+        "addrln2": null,
+        "city": "Santa Monica",
+        "state": "CA",
+        "zip": "90402-1303",
+        "organization": "Los Angeles Unified",
+        "source": "California Department of Education (CDE): https://www.cde.ca.gov/schooldirectory/ (school listing), and https://lacounty.maps.arcgis.com/home/item.html?id=61a4260e68b14a5ab91daf27d4415e7d (enrollment and improved location accuracy)",
+        "source_id": "19647336016323",
+        "source_date": "8/17/2023",
+        "latitude": 34.03174684,
+        "longitude": -118.51219423,
+        "enrollment": 387,
+        "label_class": "Charter Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "minimal"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 4526,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.547734240303,
+          34.0457388401738
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4526,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Charter Schools",
+        "name": "Marquez Charter",
+        "label": "Marquez Charter",
+        "addrln1": "16821 Marquez Avenue",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-3243",
+        "organization": "Los Angeles Unified",
+        "source": "California Department of Education (CDE): https://www.cde.ca.gov/schooldirectory/ (school listing), and https://lacounty.maps.arcgis.com/home/item.html?id=61a4260e68b14a5ab91daf27d4415e7d (enrollment and improved location accuracy)",
+        "source_id": "19647336018063",
+        "source_date": "8/17/2023",
+        "latitude": 34.04573884,
+        "longitude": -118.54773424,
+        "enrollment": 321,
+        "label_class": "Charter Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "major"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 4579,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.527212229548,
+          34.0456048404268
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4579,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Charter Schools",
+        "name": "Palisades Charter Elementary",
+        "label": "Palisades Charter Elementary",
+        "addrln1": "800 Via de La Paz",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-3617",
+        "organization": "Los Angeles Unified",
+        "source": "California Department of Education (CDE): https://www.cde.ca.gov/schooldirectory/ (school listing), and https://lacounty.maps.arcgis.com/home/item.html?id=61a4260e68b14a5ab91daf27d4415e7d (enrollment and improved location accuracy)",
+        "source_id": "19647336018634",
+        "source_date": "2/9/2023",
+        "latitude": 34.04560484,
+        "longitude": -118.52721223,
+        "enrollment": 406,
+        "label_class": "Charter Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 4663,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.603912250414,
+          34.0921048398532
+        ]
+      },
+      "properties": {
+        "OBJECTID": 4663,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Charter Schools",
+        "name": "Topanga Elementary Charter",
+        "label": "Topanga Elementary Charter",
+        "addrln1": "22075 Topanga School Road",
+        "addrln2": null,
+        "city": "Topanga",
+        "state": "CA",
+        "zip": "90290-3835",
+        "organization": "Los Angeles Unified",
+        "source": "California Department of Education (CDE): https://www.cde.ca.gov/schooldirectory/ (school listing), and https://lacounty.maps.arcgis.com/home/item.html?id=61a4260e68b14a5ab91daf27d4415e7d (enrollment and improved location accuracy)",
+        "source_id": "19647336019525",
+        "source_date": "1/14/2025",
+        "latitude": 34.09210484,
+        "longitude": -118.60391225,
+        "enrollment": 242,
+        "label_class": "Charter Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "minimal"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 5956,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.526149000502,
+          34.0446220001715
+        ]
+      },
+      "properties": {
+        "OBJECTID": 5956,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Private Schools",
+        "name": "Village School, Inc.",
+        "label": "Village School, Inc.",
+        "addrln1": "780 Swarthmore Ave.",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-4355",
+        "organization": "Los Angeles Unified",
+        "source": "https://www.cde.ca.gov/ds/si/ps/ - Private School Detailed Affidavits",
+        "source_id": "19647336904080",
+        "source_date": null,
+        "latitude": 34.044622,
+        "longitude": -118.526149,
+        "enrollment": 281,
+        "label_class": "Private Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 6018,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.524218000073,
+          34.0444520003424
+        ]
+      },
+      "properties": {
+        "OBJECTID": 6018,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Private Schools",
+        "name": "Corpus Christi Elementary",
+        "label": "Corpus Christi Elementary",
+        "addrln1": "890 Toyopa Dr.",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-3729",
+        "organization": "Los Angeles Unified",
+        "source": "https://www.cde.ca.gov/ds/si/ps/ - Private School Detailed Affidavits",
+        "source_id": "19647336960983",
+        "source_date": null,
+        "latitude": 34.044452,
+        "longitude": -118.524218,
+        "enrollment": 148,
+        "label_class": "Private Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 6129,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.542232000212,
+          34.0539510001969
+        ]
+      },
+      "properties": {
+        "OBJECTID": 6129,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Private Schools",
+        "name": "St. Matthew's Parish School",
+        "label": "St. Matthew's Parish School",
+        "addrln1": "1031 Bienveneda Ave.",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-0037",
+        "organization": "Los Angeles Unified",
+        "source": "https://www.cde.ca.gov/ds/si/ps/ - Private School Detailed Affidavits",
+        "source_id": "19647336982821",
+        "source_date": null,
+        "latitude": 34.053951,
+        "longitude": -118.542232,
+        "enrollment": 277,
+        "label_class": "Private Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 6160,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.553281999587,
+          34.0483820004105
+        ]
+      },
+      "properties": {
+        "OBJECTID": 6160,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Private Schools",
+        "name": "Calvary Christian School",
+        "label": "Calvary Christian School",
+        "addrln1": "701 Palisades Dr.",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-2839",
+        "organization": "Los Angeles Unified",
+        "source": "https://www.cde.ca.gov/ds/si/ps/ - Private School Detailed Affidavits",
+        "source_id": "19647337066426",
+        "source_date": null,
+        "latitude": 34.048382,
+        "longitude": -118.553282,
+        "enrollment": 379,
+        "label_class": "Private Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 6196,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -118.5258849996,
+          34.0450899997561
+        ]
+      },
+      "properties": {
+        "OBJECTID": 6196,
+        "cat1": "Education",
+        "cat2": "Elementary Schools",
+        "cat3": "Private Schools",
+        "name": "Seven Arrows Elementary",
+        "label": "Seven Arrows Elementary",
+        "addrln1": "15240 La Cruz Dr",
+        "addrln2": null,
+        "city": "Pacific Palisades",
+        "state": "CA",
+        "zip": "90272-3401",
+        "organization": "Los Angeles Unified",
+        "source": "https://www.cde.ca.gov/ds/si/ps/ - Private School Detailed Affidavits",
+        "source_id": "19647337104425",
+        "source_date": null,
+        "latitude": 34.04509,
+        "longitude": -118.525885,
+        "enrollment": 159,
+        "label_class": "Private Schools",
+        "last_update": "Mon, 10 Mar 2025 00:00:00 GMT",
+        "fire_damage": "moderate"
+      }
+    }
+  ]
+}
