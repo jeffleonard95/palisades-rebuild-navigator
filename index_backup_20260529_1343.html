@@ -730,6 +730,13 @@ body {
         </div>
       </div>
       <div class="form-group">
+        <span class="form-label">Residence type</span>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="res_type" value="primary"> Primary home</label>
+          <label class="radio-opt"><input type="radio" name="res_type" value="second_home"> Second home</label>
+        </div>
+      </div>
+      <div class="form-group">
         <span class="form-label">Owner age bracket</span>
         <div class="radio-row">
           <label class="radio-opt"><input type="radio" name="age" value="under_45"> Under 45</label>
@@ -745,17 +752,12 @@ body {
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" for="insurance-provider-input">Insurance provider <span class="form-optional">(optional)</span></label>
-        <input type="text" id="insurance-provider-input" name="insurance_provider"
-          style="width:100%;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;color:#333;"
-          placeholder="e.g. State Farm, FAIR Plan…">
-      </div>
-      <div class="form-group">
-        <span class="form-label">Insurance coverage</span>
+        <span class="form-label">Insurance situation</span>
         <div class="radio-col">
-          <label class="radio-opt"><input type="radio" name="insurance_coverage" value="Fully insured"> Fully insured</label>
-          <label class="radio-opt"><input type="radio" name="insurance_coverage" value="Underinsured"> Underinsured</label>
-          <label class="radio-opt"><input type="radio" name="insurance_coverage" value="Uninsured"> Uninsured</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="fully_covered"> Fully covered</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="underinsured"> Underinsured</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="fair_plan"> On FAIR Plan</label>
+          <label class="radio-opt"><input type="radio" name="insurance" value="none"> No insurance</label>
         </div>
       </div>
       <div class="form-group">
@@ -1205,18 +1207,10 @@ const INFRA_GREEN    = '#1D9E75';
 const INFRA_AMBER    = '#BA7517';
 const INFRA_RED      = '#E24B4A';
 
-function getUtilityStatus(apn) {
-  const noPower = (apn.startsWith('4404-0') && seed(apn) % 6 === 0) ||
-                  (apn.startsWith('4408')   && seed(apn) % 4 === 0);
-  const noGas   = apn.startsWith('4406') && seed(apn) % 5 === 0;
-  return { hasPower: !noPower, hasGas: !noGas, hasWater: true };
-}
-
 function getInfraColor(apn) {
-  const { hasPower, hasGas } = getUtilityStatus(apn);
-  if (!hasPower && !hasGas) return INFRA_RED;
-  if (!hasPower || !hasGas) return INFRA_AMBER;
-  return INFRA_GREEN;
+  if (apn.startsWith('4404')) return INFRA_GREEN;
+  if (apn.startsWith('4405') || apn.startsWith('4403')) return INFRA_AMBER;
+  return INFRA_RED;
 }
 
 let colorByMode = 'permit';
@@ -1262,11 +1256,6 @@ function augment(props) {
   props.owner_type       = ot <= 5 ? 'individual' : ot <= 7 ? 'sold_individual' : 'sold_developer';
   props.residence_type   = (s % 3) === 0 ? 'second_home' : 'primary';
   props.insurance_status = INSURE_MAP[s % 4];
-  props.insurance_provider = [
-    'State Farm','Allstate','Farmers Insurance','FAIR Plan',
-    'Chubb','AIG Private Client','Travelers','USAA',null,null
-  ][s % 10];
-  props.insurance_coverage = s % 10 <= 4 ? 'Fully insured' : s % 10 <= 7 ? 'Underinsured' : 'Uninsured';
   props.has_kids         = (s % 3) === 0;
   props.owner_age_bracket= AGE_MAP[s % 3];
   props.days_in_review   = (s % 90) + 1;
@@ -1485,15 +1474,6 @@ function renderParcels(features) {
   tagFireDamage(features);
   allProps = features.map(f => f.properties);
 
-  // Change 7: parcels already under construction or complete should not show as "rebuild"
-  allProps.forEach(p => {
-    if (p.UseType !== 'Residential') return;
-    if ((p.permit_status === 'under_construction' || p.permit_status === 'complete') &&
-        (p.intent === 'rebuild' || p.intent === null)) {
-      p.intent = 'undecided';
-    }
-  });
-
   // renderer is declared above — must exist before geoJSON layer is created
   geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
     renderer,
@@ -1668,7 +1648,7 @@ function updateStats() {
         [pct(indiv, n)     + '%', 'Individual owned'],
         [pct(soldIndiv, n) + '%', 'Sold to individual'],
         [pct(soldDev, n)   + '%', 'Sold to developer'],
-        ['',                       ''],
+        ['$2.4M',                  'Est. avg lot price'],
       ]);
       break;
     }
@@ -1697,11 +1677,11 @@ const LEGEND_DEFS = {
     ],
   },
   infra: {
-    title: 'Infrastructure',
+    title: 'Infrastructure & Schools',
     items: [
-      ['#1D9E75', 'Full utilities restored'],
-      ['#BA7517', 'Power or gas outage'],
-      ['#E24B4A', 'Multiple utility outages'],
+      ['#1D9E75', 'Full utilities (APN 4404)'],
+      ['#BA7517', 'Power only (APN 4403/4405)'],
+      ['#E24B4A', 'No utilities'],
       [null, 'Schools'],
       ['#BA7517', 'Temporary facilities'],
       ['#1D9E75', 'Fully operational'],
@@ -1895,13 +1875,6 @@ function insureBadge(v) {
   return badge(map[v] || 'gray', fmt(v));
 }
 
-function insureCoverageBadge(v) {
-  if (v === 'Fully insured') return badge('green', 'Fully insured');
-  if (v === 'Underinsured')  return badge('amber', 'Underinsured');
-  if (v === 'Uninsured')     return badge('red',   'Uninsured');
-  return badge('gray', v || 'Unknown');
-}
-
 // ─── Sidebar renderers (per tab) ──────────────────────────────────────────────
 function renderPermit(p) {
   if (p.real_permit) return renderRealPermit(p);
@@ -2032,37 +2005,49 @@ function renderIntent(p) {
   return `
     ${srow('Rebuild intent', intentBadge(p.intent))}
     ${renderMaterialsSummary(p)}
+    ${srow('Residence type', badge('gray', fmt(p.residence_type)))}
     ${srow('Owner age', badge('blue', fmt(p.owner_age_bracket)))}
     ${srow('Children in household', badge(p.has_kids ? 'blue' : 'gray', p.has_kids ? 'Yes' : 'No'))}
-    ${srow('Insurance provider', p.insurance_provider ? `<span style="font-size:13px;color:#333;">${p.insurance_provider}</span>` : `<span style="color:#9e9e9e;font-style:italic;font-size:12px;">Not provided</span>`)}
-    ${srow('Insurance coverage', insureCoverageBadge(p.insurance_coverage))}
+    ${srow('Insurance', insureBadge(p.insurance_status))}
     ${p.intent === 'undecided' ? '<button class="declare-btn" id="open-declare" style="margin-top:12px;">Update your intention</button>' : ''}`;
 }
 
 function renderInfra(p) {
   const apn = String(p.APN || '');
-  const { hasPower, hasGas, hasWater } = getUtilityStatus(apn);
+  const is4404 = apn.startsWith('4404');
+  const is4403or5 = apn.startsWith('4403') || apn.startsWith('4405');
+  const hasPower = is4404 || is4403or5;
+  const hasWater = is4404;
 
-  function svcRow(name, yes, label) {
+  function svcRow(name, yes) {
     const cls = yes ? 'svc-green' : 'svc-red';
+    const txt = yes ? 'Restored' : 'Not restored';
     const tcl = yes ? 'svc-txt-green' : 'svc-txt-red';
     return `<div class="svc-row">
       <div class="svc-dot ${cls}"></div>
       <span class="svc-name">${name}</span>
-      <span class="svc-txt ${tcl}">${label}</span>
+      <span class="svc-txt ${tcl}">${txt}</span>
     </div>`;
   }
   return `
     <div class="sb-section-label">Service status</div>
-    ${svcRow('Power', hasPower, hasPower ? 'Restored' : 'Not restored')}
-    ${svcRow('Water', hasWater, 'Restored (all areas)')}
-    ${svcRow('Gas', hasGas, hasGas ? 'Restored' : 'Not restored')}`;
+    ${svcRow('Power', hasPower)}
+    ${svcRow('Water', hasWater)}
+    ${svcRow('Gas', false)}
+    ${svcRow('Schools', false)}
+    <div class="svc-row">
+      <div class="svc-dot svc-green"></div>
+      <span class="svc-name">Debris cleared</span>
+      <span class="svc-txt svc-txt-green">Yes</span>
+    </div>`;
 }
 
 function renderInvestor(p) {
   const apn         = String(p.APN || '');
   const isSoldDev   = p.owner_type === 'sold_developer';
   const isSoldIndiv = p.owner_type === 'sold_individual';
+  const s           = seed(apn);
+  const priceM      = ((s % 30) + 10) * 0.1;
   const pctMap      = apn.startsWith('4404') ? 22 : apn.startsWith('4405') ? 38 : 45;
 
   const ownerCls = isSoldDev ? 'red' : isSoldIndiv ? 'orange' : 'green';
@@ -2077,7 +2062,9 @@ function renderInvestor(p) {
     : '';
   return `
     ${warn}
-    ${srow('Owner type', badge(ownerCls, ownerLbl))}
+    ${srow('Owner type',     badge(ownerCls, ownerLbl))}
+    ${srow('Residence type', badge('gray', fmt(p.residence_type)))}
+    ${srow('Pre-fire value', `<span style="font-weight:700;color:#1a237e;">$${priceM.toFixed(1)}M</span>`)}
     <div style="margin-top:12px;">
       <div style="font-size:11px;color:#757575;margin-bottom:5px;">Investor concentration — this area</div>
       <div style="display:flex;align-items:center;gap:8px;">
@@ -2230,10 +2217,8 @@ function openDeclareModal(props) {
     const r = form.querySelector(`input[name="kids"][value="${props.has_kids ? 'yes' : 'no'}"]`);
     if (r) r.checked = true;
   }
-  const providerInp = form.querySelector('input[name="insurance_provider"]');
-  if (providerInp && props.insurance_provider) providerInp.value = props.insurance_provider;
-  if (props.insurance_coverage) {
-    const r = form.querySelector(`input[name="insurance_coverage"][value="${props.insurance_coverage}"]`);
+  if (props.insurance_status) {
+    const r = form.querySelector(`input[name="insurance"][value="${props.insurance_status}"]`);
     if (r) r.checked = true;
   }
 
@@ -2277,10 +2262,8 @@ document.getElementById('declare-form').addEventListener('submit', e => {
   p.intent = newIntent;
   const kv = form.elements['kids'].value;
   if (kv) p.has_kids = kv === 'yes';
-  const provEl = form.querySelector('input[name="insurance_provider"]');
-  if (provEl) p.insurance_provider = provEl.value.trim() || null;
-  const covEl = form.querySelector('input[name="insurance_coverage"]:checked');
-  if (covEl) p.insurance_coverage = covEl.value;
+  const iv = form.elements['insurance'].value;
+  if (iv) p.insurance_status = iv;
 
   // Update map color immediately
   if (selectedLayer && activeFeature && activeFeature.properties === p) {
@@ -2477,25 +2460,9 @@ function wireSchoolListClicks() {
 function updateDefaultPanel() {
   const el = document.getElementById('sb-default');
   if (activeTab === 'infra') {
-    el.style.cssText = 'display:flex;flex-direction:column;flex:1;padding:14px;';
-    el.innerHTML = `
-      <div class="sb-section-label" style="margin-bottom:10px;">Utility restoration status</div>
-      <div class="svc-row">
-        <div class="svc-dot svc-amber"></div>
-        <span class="svc-name">Power</span>
-        <span class="svc-txt svc-txt-amber">Restored to 85% of parcels</span>
-      </div>
-      <div class="svc-row">
-        <div class="svc-dot svc-green"></div>
-        <span class="svc-name">Water</span>
-        <span class="svc-txt svc-txt-green">Restored to all parcels</span>
-      </div>
-      <div class="svc-row">
-        <div class="svc-dot svc-green"></div>
-        <span class="svc-name">Gas</span>
-        <span class="svc-txt svc-txt-green">Restored to 95% of parcels</span>
-      </div>
-      <p style="font-size:12px;color:#9e9e9e;margin-top:14px;line-height:1.5;">Click any parcel to see per-parcel utility status</p>`;
+    el.style.cssText = 'display:flex;flex-direction:column;flex:1;overflow-y:auto;';
+    el.innerHTML     = buildSchoolListHTML();
+    wireSchoolListClicks();
   } else {
     el.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;';
     el.innerHTML     = '<p style="font-size:13px;color:#9e9e9e;line-height:1.5;">Click any parcel to see details</p>';
