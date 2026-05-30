@@ -1205,6 +1205,26 @@ const INFRA_GREEN    = '#1D9E75';
 const INFRA_AMBER    = '#BA7517';
 const INFRA_RED      = '#E24B4A';
 
+const RADIUS_DEG = 0.00096; // ~350 ft at this latitude
+
+function parcelCenter(feature) {
+  const coords = feature.geometry.type === 'Polygon'
+    ? feature.geometry.coordinates[0]
+    : feature.geometry.coordinates[0][0];
+  const lats = coords.map(c => c[1]);
+  const lngs = coords.map(c => c[0]);
+  return {
+    lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+    lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+  };
+}
+
+function withinRadius(lat1, lng1, lat2, lng2, r) {
+  const dLat = lat2 - lat1;
+  const dLng = (lng2 - lng1) * Math.cos(lat1 * Math.PI / 180);
+  return Math.sqrt(dLat * dLat + dLng * dLng) < r;
+}
+
 function getUtilityStatus(apn) {
   const noPower = (apn.startsWith('4404-0') && seed(apn) % 6 === 0) ||
                   (apn.startsWith('4408')   && seed(apn) % 4 === 0);
@@ -1463,11 +1483,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Canvas renderer — required for 10k+ polygons without freezing
 const renderer = L.canvas({ padding: 0.5 });
 
-let activeTab      = 'permit';
-let geoLayer       = null;
-let selectedLayer  = null;
-let activeFeature  = null;    // currently-selected feature
-let allProps       = [];      // flat array of all augmented feature.properties
+let activeTab          = 'permit';
+let geoLayer           = null;
+let selectedLayer      = null;
+let activeFeature      = null;
+let allProps           = [];
+let neighborhoodMode   = false;
+let neighborhoodNearby = [];
 
 // ─── Data loading ─────────────────────────────────────────────────────────────
 // PARCEL_DATA is pre-loaded from parcels_data.js (included in <head>).
@@ -1484,6 +1506,11 @@ function renderParcels(features) {
   joinPermitData(features);
   tagFireDamage(features);
   allProps = features.map(f => f.properties);
+  features.forEach(f => {
+    const c = parcelCenter(f);
+    f.properties._lat = c.lat;
+    f.properties._lng = c.lng;
+  });
 
   // Change 7: parcels already under construction or complete should not show as "rebuild"
   allProps.forEach(p => {
@@ -1553,8 +1580,37 @@ function selectParcel(layer, feature) {
   selectedLayer = layer;
   activeFeature = feature;
   layer.setStyle({ weight: 3, opacity: 1, fillOpacity: 0.75 });
+
+  const p = feature.properties;
+  if (p._lat != null && p._lng != null) {
+    neighborhoodNearby = allProps.filter(q =>
+      q._lat != null && q._lng != null &&
+      (q.display_category || '').startsWith('residential') &&
+      withinRadius(p._lat, p._lng, q._lat, q._lng, RADIUS_DEG)
+    );
+    neighborhoodMode = true;
+  } else {
+    neighborhoodMode = false;
+    neighborhoodNearby = [];
+  }
+
+  updateStats();
   openSidebar(feature.properties);
 }
+
+map.on('click', () => {
+  if (!activeFeature) return;
+  if (selectedLayer) { geoLayer.resetStyle(selectedLayer); selectedLayer = null; }
+  activeFeature = null;
+  activeSchoolProps = null;
+  neighborhoodMode = false;
+  neighborhoodNearby = [];
+  if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
+  document.getElementById('sb-hdr').style.display = 'none';
+  document.getElementById('sb-body').innerHTML = '';
+  updateStats();
+  updateDefaultPanel();
+});
 
 // Redraw all parcels when tab changes — applyFilters handles style + visibility
 function redrawLayer() {
@@ -1595,37 +1651,62 @@ function setStats(pairs) {
   });
 }
 
+function clearNeighborhoodMode() {
+  if (selectedLayer) { geoLayer.resetStyle(selectedLayer); selectedLayer = null; }
+  activeFeature = null;
+  activeSchoolProps = null;
+  neighborhoodMode = false;
+  neighborhoodNearby = [];
+  if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
+  document.getElementById('sb-hdr').style.display = 'none';
+  document.getElementById('sb-body').innerHTML = '';
+  updateStats();
+  updateDefaultPanel();
+}
+
+function updateStatsNote() {
+  const el = document.getElementById('stats-note');
+  if (!el) return;
+  if (neighborhoodMode) {
+    el.innerHTML = `<span style="color:#BA7517;font-weight:600;">Showing ${neighborhoodNearby.length} parcels within ~350ft of selected lot</span>&ensp;<span id="clear-neighborhood" style="color:#1565c0;cursor:pointer;text-decoration:underline;">× Clear</span>`;
+    const clr = el.querySelector('#clear-neighborhood');
+    if (clr) clr.addEventListener('click', clearNeighborhoodMode);
+  } else if (activeTab === 'permit' && FIRE_DAMAGE_COUNTS.fire_destroyed_major !== undefined) {
+    const dm = FIRE_DAMAGE_COUNTS.fire_destroyed_major;
+    const ma = FIRE_DAMAGE_COUNTS.fire_minor_affected;
+    const nd = FIRE_DAMAGE_COUNTS.fire_no_damage;
+    el.textContent = `Fire zone: ${dm.toLocaleString()} destroyed/major · ${ma.toLocaleString()} minor/affected · ${nd.toLocaleString()} no damage`;
+  } else {
+    el.textContent = 'Residential parcels only';
+  }
+}
+
 function updateStats() {
+  for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).style.color = '';
+  updateStatsNote();
+  if (neighborhoodMode) {
+    updateNeighborhoodStats();
+  } else {
+    updateGlobalStats();
+  }
+}
+
+function updateGlobalStats() {
   const res = allProps.filter(p => (p.display_category || '').startsWith('residential'));
   const n   = res.length;
-  for (let i = 1; i <= 4; i++) document.getElementById(`s${i}`).style.color = '';
-
-  // Update stats-note
-  const statsNote = document.getElementById('stats-note');
-  if (statsNote) {
-    if (activeTab === 'permit' && FIRE_DAMAGE_COUNTS.fire_destroyed_major !== undefined) {
-      const dm = FIRE_DAMAGE_COUNTS.fire_destroyed_major;
-      const ma = FIRE_DAMAGE_COUNTS.fire_minor_affected;
-      const nd = FIRE_DAMAGE_COUNTS.fire_no_damage;
-      statsNote.textContent =
-        `Fire zone: ${dm.toLocaleString()} destroyed/major · ${ma.toLocaleString()} minor/affected · ${nd.toLocaleString()} no damage`;
-    } else {
-      statsNote.textContent = 'Residential parcels only';
-    }
-  }
 
   switch (activeTab) {
 
     case 'permit': {
-      const withApp = res.filter(p =>
-        ['approved','under_construction','complete'].includes(p.permit_status)).length;
+      const withApp = res.filter(p => p.permit_status !== 'no_application').length;
+      const issued  = res.filter(p => ['approved','under_construction','complete'].includes(p.permit_status)).length;
       const inConst = res.filter(p => p.permit_status === 'under_construction').length;
       const done    = res.filter(p => p.permit_status === 'complete').length;
       setStats([
-        [n.toLocaleString(),           'Residential parcels'],
-        [pct(withApp, n) + '%',        'With permit application'],
-        [pct(inConst, n) + '%',        'Under construction'],
-        [pct(done, n) + '%',           'Permits complete'],
+        [withApp.toLocaleString(), 'Total applications'],
+        [issued.toLocaleString(),  'Permits issued'],
+        [inConst.toLocaleString(), 'Under construction'],
+        [done.toLocaleString(),    'Complete'],
       ]);
       break;
     }
@@ -1645,32 +1726,111 @@ function updateStats() {
     }
 
     case 'infra': {
-      const operational = schoolFeatures.filter(f => f.properties.operating_status === 'permanent').length;
-      const temporary   = schoolFeatures.filter(f => f.properties.operating_status === 'temporary').length;
-      const destroyed   = schoolFeatures.filter(f => f.properties.fire_damage === 'major').length;
-      const totalSch    = schoolFeatures.length;
-      const opColor     = operational === 0 ? '#E24B4A' : operational < totalSch / 2 ? '#BA7517' : '#1D9E75';
+      const powerRestored = res.filter(p => getUtilityStatus(String(p.APN || '')).hasPower).length;
+      const gasRestored   = res.filter(p => getUtilityStatus(String(p.APN || '')).hasGas).length;
+      const operational   = schoolFeatures.filter(f => f.properties.operating_status === 'permanent').length;
+      const totalSch      = schoolFeatures.length;
+      const opColor       = operational === 0 ? '#E24B4A' : operational < totalSch / 2 ? '#BA7517' : '#1D9E75';
       setStats([
-        [`${operational} of ${totalSch}`, 'Schools fully operational'],
-        [`${temporary}`,                   'Schools in temporary facilities'],
-        [`${destroyed}`,                   'Schools destroyed'],
-        ['34%',                            'Utilities restored'],
+        [pct(powerRestored, n) + '%',                         'Power restored'],
+        ['100%',                                               'Water restored'],
+        [pct(gasRestored, n)   + '%',                         'Gas restored'],
+        [totalSch > 0 ? `${operational} of ${totalSch}` : '—', 'Schools operational'],
       ]);
-      document.getElementById('s1').style.color = opColor;
+      document.getElementById('s4').style.color = opColor;
       break;
     }
 
     case 'investor': {
-      const soldDev   = res.filter(p => p.owner_type === 'sold_developer').length;
-      const soldIndiv = res.filter(p => p.owner_type === 'sold_individual').length;
-      const indiv     = res.filter(p => p.owner_type === 'individual').length;
+      const soldDev  = res.filter(p => p.owner_type === 'sold_developer').length;
+      const indiv    = res.filter(p => p.owner_type === 'individual').length;
+      const areas    = res.filter(p => (p.Shape__Area || 0) > 0).map(p => p.Shape__Area * 10.764 * 300 / 1e6);
+      const avgPrice = areas.length > 0 ? '$' + (areas.reduce((a, b) => a + b, 0) / areas.length).toFixed(1) + 'M' : '—';
+      const llcPct   = pct(soldDev, n);
+      const trend    = llcPct >= 30 ? 'High' : llcPct >= 15 ? 'Moderate' : 'Low';
+      const trendClr = llcPct >= 30 ? '#E24B4A' : llcPct >= 15 ? '#BA7517' : '#1D9E75';
       setStats([
-        [pct(indiv, n)     + '%', 'Individual owned'],
-        [pct(soldIndiv, n) + '%', 'Sold to individual'],
-        [pct(soldDev, n)   + '%', 'Sold to developer'],
-        ['',                       ''],
+        [pct(soldDev, n) + '%', 'LLC / investor owned'],
+        [pct(indiv, n)   + '%', 'Individual owned'],
+        [avgPrice,               'Est. avg lot value'],
+        [trend,                  'Investor concentration'],
+      ]);
+      document.getElementById('s4').style.color = trendClr;
+      break;
+    }
+  }
+}
+
+function updateNeighborhoodStats() {
+  const nearby = neighborhoodNearby;
+  const n      = nearby.length;
+
+  switch (activeTab) {
+
+    case 'permit': {
+      const withApp = nearby.filter(p => p.permit_status !== 'no_application').length;
+      const inConst = nearby.filter(p => p.permit_status === 'under_construction').length;
+      const done    = nearby.filter(p => p.permit_status === 'complete').length;
+      setStats([
+        [n,                                  'parcels nearby'],
+        [`${withApp} (${pct(withApp, n)}%)`, 'permit applications'],
+        [`${inConst} (${pct(inConst, n)}%)`, 'under construction'],
+        [`${done} (${pct(done, n)}%)`,       'complete'],
       ]);
       break;
+    }
+
+    case 'intent': {
+      const rebuild   = nearby.filter(p => p.intent === 'rebuild').length;
+      const undecided = nearby.filter(p => p.intent === 'undecided').length;
+      const sold      = nearby.filter(p => p.intent === 'sold').length;
+      const other     = n - rebuild - undecided - sold;
+      setStats([
+        [n,                                              'parcels nearby'],
+        [`${rebuild} (${pct(rebuild, n)}%)`,             'planning to rebuild'],
+        [`${undecided} (${pct(undecided, n)}%)`,         'undecided'],
+        [`${sold + other} (${pct(sold + other, n)}%)`,   'sold or no declaration'],
+      ]);
+      break;
+    }
+
+    case 'infra': {
+      const powerOut = nearby.filter(p => !getUtilityStatus(String(p.APN || '')).hasPower).length;
+      const gasOut   = nearby.filter(p => !getUtilityStatus(String(p.APN || '')).hasGas).length;
+      const powerOn  = n - powerOut;
+      const gasOn    = n - gasOut;
+      setStats([
+        [n,                                        'parcels nearby'],
+        [`${powerOn} restored / ${powerOut} out`, 'Power'],
+        [`${gasOn} restored / ${gasOut} out`,     'Gas'],
+        ['All restored',                           'Water'],
+      ]);
+      break;
+    }
+
+    case 'investor': {
+      const soldDev  = nearby.filter(p => p.owner_type === 'sold_developer').length;
+      const indiv    = nearby.filter(p => p.owner_type === 'individual').length;
+      const llcPct   = pct(soldDev, n);
+      const conc     = llcPct >= 30 ? 'High' : llcPct >= 15 ? 'Moderate' : 'Low';
+      const concClr  = llcPct >= 30 ? '#E24B4A' : llcPct >= 15 ? '#BA7517' : '#1D9E75';
+      setStats([
+        [n,                              'parcels nearby'],
+        [`${soldDev} (${llcPct}%)`,      'LLC / investor owned'],
+        [`${indiv} (${pct(indiv, n)}%)`, 'individual owned'],
+        [conc,                           'Investor concentration'],
+      ]);
+      document.getElementById('s4').style.color = concClr;
+      break;
+    }
+
+    default: {
+      setStats([
+        [n,   'parcels nearby'],
+        ['—', '—'],
+        ['—', '—'],
+        ['—', '—'],
+      ]);
     }
   }
 }
@@ -2196,9 +2356,12 @@ document.getElementById('close-btn').addEventListener('click', () => {
   if (selectedLayer) { geoLayer.resetStyle(selectedLayer); selectedLayer = null; }
   activeFeature = null;
   activeSchoolProps = null;
+  neighborhoodMode = false;
+  neighborhoodNearby = [];
   if (schoolHighlightLayer) { map.removeLayer(schoolHighlightLayer); schoolHighlightLayer = null; }
   document.getElementById('sb-hdr').style.display  = 'none';
   document.getElementById('sb-body').innerHTML     = '';
+  updateStats();
   updateDefaultPanel();
 });
 
