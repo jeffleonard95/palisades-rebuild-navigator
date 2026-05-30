@@ -677,10 +677,10 @@ body {
 <div id="stats-note">Residential parcels only</div>
 
 <div id="tabs">
-  <div class="tab active" data-tab="permit">Permitting &amp; Construction</div>
-  <div class="tab" data-tab="intent">Rebuild Intent</div>
-  <div class="tab" data-tab="infra">Utilities &amp; Schools</div>
-  <div class="tab" data-tab="investor">Investor Activity</div>
+  <div class="tab active" data-tab="permit">Permitting &amp; construction</div>
+  <div class="tab" data-tab="intent">Rebuild intent</div>
+  <div class="tab" data-tab="infra">Infrastructure &amp; services</div>
+  <div class="tab" data-tab="investor">Investor activity</div>
 </div>
 
 <div id="main">
@@ -1225,27 +1225,17 @@ function withinRadius(lat1, lng1, lat2, lng2, r) {
   return Math.sqrt(dLat * dLat + dLng * dLng) < r;
 }
 
-function computeUtilities(props, center) {
-  const isDestroyed = props.fire_damage === 'Destroyed (>50%)' ||
-                      props.fire_damage === 'Major (26-50%)';
-  const apn = String(props.APN || '');
-
-  const nearAkron     = withinRadius(center.lat, center.lng, 34.0412, -118.5368, 0.008);
-  const nearSecondary = withinRadius(center.lat, center.lng, 34.0452, -118.5301, 0.005);
-  props.has_power = !(isDestroyed && (
-    (nearAkron     && seed(apn) % 3 !== 0) ||
-    (nearSecondary && seed(apn) % 4 === 0)
-  ));
-
-  const nearJacon = withinRadius(center.lat, center.lng, 34.0438, -118.5445, 0.006);
-  props.has_gas = !(isDestroyed && nearJacon && seed(apn) % 2 === 0);
-
-  props.has_water = true;
+function getUtilityStatus(apn) {
+  const noPower = (apn.startsWith('4404-0') && seed(apn) % 6 === 0) ||
+                  (apn.startsWith('4408')   && seed(apn) % 4 === 0);
+  const noGas   = apn.startsWith('4406') && seed(apn) % 5 === 0;
+  return { hasPower: !noPower, hasGas: !noGas, hasWater: true };
 }
 
-function getInfraColor(props) {
-  if (!props.has_power && !props.has_gas) return INFRA_RED;
-  if (!props.has_power || !props.has_gas) return INFRA_AMBER;
+function getInfraColor(apn) {
+  const { hasPower, hasGas } = getUtilityStatus(apn);
+  if (!hasPower && !hasGas) return INFRA_RED;
+  if (!hasPower || !hasGas) return INFRA_AMBER;
   return INFRA_GREEN;
 }
 
@@ -1267,7 +1257,7 @@ function getParcelColor(props) {
     case 'intent':
       return props.intent ? (INTENT_COLORS[props.intent] || NULL_COLOR) : NULL_COLOR;
     case 'infra':
-      return getInfraColor(props);
+      return getInfraColor(apn);
     case 'investor':
       if (props.owner_type === 'sold_developer')  return LLC_COLOR;
       if (props.owner_type === 'sold_individual') return SOLD_INDIV_COLOR;
@@ -1520,7 +1510,6 @@ function renderParcels(features) {
     const c = parcelCenter(f);
     f.properties._lat = c.lat;
     f.properties._lng = c.lng;
-    computeUtilities(f.properties, c);
   });
 
   // Change 7: parcels already under construction or complete should not show as "rebuild"
@@ -1737,14 +1726,16 @@ function updateGlobalStats() {
     }
 
     case 'infra': {
-      const totalSch = schoolFeatures.length;
+      const operational = schoolFeatures.filter(f => f.properties.operating_status === 'permanent').length;
+      const totalSch    = schoolFeatures.length;
+      const opColor     = operational === 0 ? '#E24B4A' : operational < totalSch / 2 ? '#BA7517' : '#1D9E75';
       setStats([
         ['85%',  'Power restored'],
         ['100%', 'Water restored'],
         ['95%',  'Gas restored'],
-        [totalSch > 0 ? `${totalSch} of ${totalSch}` : '—', 'Schools operational'],
+        [totalSch > 0 ? `${operational} of ${totalSch}` : '—', 'Schools operational'],
       ]);
-      document.getElementById('s4').style.color = '#1D9E75';
+      document.getElementById('s4').style.color = opColor;
       break;
     }
 
@@ -1757,7 +1748,7 @@ function updateGlobalStats() {
       const trend    = llcPct >= 30 ? 'High' : llcPct >= 15 ? 'Moderate' : 'Low';
       const trendClr = llcPct >= 30 ? '#E24B4A' : llcPct >= 15 ? '#BA7517' : '#1D9E75';
       setStats([
-        [pct(soldDev, n) + '%', 'Investor owned'],
+        [pct(soldDev, n) + '%', 'LLC / investor owned'],
         [pct(indiv, n)   + '%', 'Individual owned'],
         [avgPrice,               'Est. avg lot value'],
         [trend,                  'Investor concentration'],
@@ -1802,8 +1793,8 @@ function updateNeighborhoodStats() {
     }
 
     case 'infra': {
-      const powerOut = nearby.filter(p => p.has_power === false).length;
-      const gasOut   = nearby.filter(p => p.has_gas   === false).length;
+      const powerOut = nearby.filter(p => !getUtilityStatus(String(p.APN || '')).hasPower).length;
+      const gasOut   = nearby.filter(p => !getUtilityStatus(String(p.APN || '')).hasGas).length;
       setStats([
         [n,              'parcels nearby'],
         [powerOut,       'Power out'],
@@ -1821,8 +1812,8 @@ function updateNeighborhoodStats() {
       const concClr  = llcPct >= 30 ? '#E24B4A' : llcPct >= 15 ? '#BA7517' : '#1D9E75';
       setStats([
         [n,                              'parcels nearby'],
-        [`${soldDev} (${llcPct}%)`,      'Investor owned'],
-        [`${indiv} (${pct(indiv, n)}%)`, 'Individual owned'],
+        [`${soldDev} (${llcPct}%)`,      'LLC / investor owned'],
+        [`${indiv} (${pct(indiv, n)}%)`, 'individual owned'],
         [conc,                           'Investor concentration'],
       ]);
       document.getElementById('s4').style.color = concClr;
@@ -2205,9 +2196,8 @@ function renderIntent(p) {
 }
 
 function renderInfra(p) {
-  const hasPower = p.has_power !== false;
-  const hasGas   = p.has_gas   !== false;
-  const hasWater = true;
+  const apn = String(p.APN || '');
+  const { hasPower, hasGas, hasWater } = getUtilityStatus(apn);
 
   function svcRow(name, yes, label) {
     const cls = yes ? 'svc-green' : 'svc-red';
@@ -2226,19 +2216,14 @@ function renderInfra(p) {
 }
 
 function renderInvestor(p) {
+  const apn         = String(p.APN || '');
   const isSoldDev   = p.owner_type === 'sold_developer';
   const isSoldIndiv = p.owner_type === 'sold_individual';
+  const pctMap      = apn.startsWith('4404') ? 22 : apn.startsWith('4405') ? 38 : 45;
 
   const ownerCls = isSoldDev ? 'red' : isSoldIndiv ? 'orange' : 'green';
   const ownerLbl = isSoldDev ? 'Sold — to developer/LLC' : isSoldIndiv ? 'Sold — to individual' : 'Individual owner';
-
-  const pool    = neighborhoodMode
-    ? neighborhoodNearby
-    : allProps.filter(q => (q.display_category || '').startsWith('residential'));
-  const llcN    = pool.filter(q => q.owner_type === 'sold_developer').length;
-  const invPct  = pool.length > 0 ? Math.round(llcN / pool.length * 100) : 0;
-  const concLbl = neighborhoodMode ? 'Investor concentration — nearby' : 'Investor concentration — overall';
-  const concClr = invPct >= 30 ? '#E24B4A' : invPct >= 15 ? '#BA7517' : '#1D9E75';
+  const barColor = isSoldDev ? '#E24B4A' : isSoldIndiv ? '#E8A838' : '#BA7517';
 
   const warn = isSoldDev
     ? `<div class="inv-warn">
@@ -2250,12 +2235,12 @@ function renderInvestor(p) {
     ${warn}
     ${srow('Owner type', badge(ownerCls, ownerLbl))}
     <div style="margin-top:12px;">
-      <div style="font-size:11px;color:#757575;margin-bottom:5px;">${concLbl}</div>
+      <div style="font-size:11px;color:#757575;margin-bottom:5px;">Investor concentration — this area</div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="infra-bar-bg" style="flex:1;">
-          <div class="infra-bar-fill" style="width:${invPct}%;background:${concClr};"></div>
+          <div class="infra-bar-fill" style="width:${pctMap}%;background:${barColor};"></div>
         </div>
-        <span style="font-size:13px;font-weight:700;color:${concClr};min-width:34px;text-align:right;">${invPct}%</span>
+        <span style="font-size:13px;font-weight:700;color:${barColor};min-width:34px;text-align:right;">${pctMap}%</span>
       </div>
     </div>`;
 }
