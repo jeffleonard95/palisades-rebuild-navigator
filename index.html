@@ -726,7 +726,8 @@ body {
         <div class="radio-col">
           <label class="radio-opt"><input type="radio" name="intent" value="rebuild" required> Planning to rebuild</label>
           <label class="radio-opt"><input type="radio" name="intent" value="undecided"> Undecided</label>
-          <label class="radio-opt"><input type="radio" name="intent" value="sold"> Sold / not returning</label>
+          <label class="radio-opt"><input type="radio" name="intent" value="sold_individual"> Selling to an individual or family</label>
+          <label class="radio-opt"><input type="radio" name="intent" value="sold_developer"> Selling to a developer or LLC</label>
         </div>
       </div>
       <div class="form-group">
@@ -913,228 +914,8 @@ body {
 'use strict';
 
 // ─── Building materials data (keyed by APN) ───────────────────────────────────
-var MATERIALS_DATA = {
-  "4412-010-003": {
-    submitted_date: "2025-03-15",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
-    defensible_space: ["All zones cleared"],
-    notes: ""
-  },
-  "4408-021-003": {
-    submitted_date: "2025-04-02",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Tile",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Fiberglass",
-    suppression: ["None planned"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: "Working with architect on fire suppression options"
-  },
-  "4407-006-001": {
-    submitted_date: "2025-04-10",
-    structure: "Steel frame",
-    roof: "Metal",
-    exterior_walls: "Concrete panels",
-    windows: "Triple-pane",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers"],
-    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: "Going full non-combustible. Architect is Lautner-influenced."
-  },
-  "4412-023-001": {
-    submitted_date: "2025-02-28",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Class A asphalt shingles",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Vinyl",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)"],
-    notes: ""
-  },
-  "4410-003-021": {
-    submitted_date: "2025-05-01",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Gel / foam system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Insurance required full sprinkler system"
-  },
-  "4409-026-013": {
-    submitted_date: "2025-03-22",
-    structure: "Not yet decided",
-    roof: "Not yet decided",
-    exterior_walls: "Not yet decided",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Not yet decided",
-    suppression: ["Not yet started"],
-    defensible_space: ["Not yet started"],
-    notes: "Still working with structural engineer on options"
-  },
-  "4409-020-006": {
-    submitted_date: "2025-04-18",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Fiberglass",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: ""
-  },
-  "4408-031-016": {
-    submitted_date: "2025-03-05",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Concrete panels",
-    windows: "Triple-pane",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers", "Perimeter irrigation system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Targeting Wildfire Home Retrofit program compliance"
-  },
-  "4412-022-012": {
-    submitted_date: "2025-04-30",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Tile",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["None planned"],
-    defensible_space: ["Zone 2 cleared (30-100 ft)"],
-    notes: ""
-  },
-  "4408-016-010": {
-    submitted_date: "2025-04-07",
-    structure: "Steel frame",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "All zones cleared"],
-    notes: "Steel frame chosen for insurance premium reduction"
-  },
-  "4412-014-039": {
-    submitted_date: "2025-02-14",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Class A asphalt shingles",
-    exterior_walls: "Stucco",
-    windows: "Not yet decided",
-    window_frames: "Not yet decided",
-    suppression: ["None planned"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)"],
-    notes: "Budget constraints limiting non-combustible upgrades"
-  },
-  "4412-022-029": {
-    submitted_date: "2025-05-03",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Second rebuild after prior fire loss — going fully fire-resistant this time"
-  },
-  "4411-027-016": {
-    submitted_date: "2025-03-30",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Metal",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Fiberglass",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: ""
-  },
-  "4408-011-005": {
-    submitted_date: "2025-04-25",
-    structure: "Not yet decided",
-    roof: "Metal",
-    exterior_walls: "Not yet decided",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Perimeter irrigation system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Decided on roof and windows, still evaluating structure and walls"
-  },
-  "4412-004-090": {
-    submitted_date: "2025-01-30",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Concrete panels",
-    windows: "Triple-pane",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Exterior roof sprinklers"],
-    defensible_space: ["Zone 0 cleared (0-5 ft from structure)", "Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: "Full hardened construction. Permit submitted."
-  },
-  "4410-027-023": {
-    submitted_date: "2025-04-12",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Tile",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Vinyl",
-    suppression: ["None planned"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)"],
-    notes: ""
-  },
-  "4407-006-029": {
-    submitted_date: "2025-03-18",
-    structure: "Steel frame",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Gel / foam system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Modular steel construction — faster timeline"
-  },
-  "4407-006-021": {
-    submitted_date: "2025-04-28",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Class A asphalt shingles",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Fiberglass",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 2 cleared (30-100 ft)"],
-    notes: ""
-  },
-  "4408-013-009": {
-    submitted_date: "2025-05-02",
-    structure: "Concrete, CMU, or ICF",
-    roof: "Metal",
-    exterior_walls: "Fiber cement (e.g. HardiePlank)",
-    windows: "Triple-pane",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)", "Perimeter irrigation system"],
-    defensible_space: ["All zones cleared"],
-    notes: "Concrete ICF walls, planning to get IBHS Fortified certification"
-  },
-  "4409-018-007": {
-    submitted_date: "2025-03-10",
-    structure: "Wood frame with fire-rated assemblies",
-    roof: "Metal",
-    exterior_walls: "Stucco",
-    windows: "Dual-pane tempered glass",
-    window_frames: "Aluminum-clad",
-    suppression: ["Interior sprinklers (NFPA 13D)"],
-    defensible_space: ["Zone 1 cleared (5-30 ft)", "Zone 2 cleared (30-100 ft)"],
-    notes: ""
-  }
-};
+// User-submitted overrides — seed-based generation handles the rest
+var MATERIALS_DATA = {};
 
 // ─── Layer categories & filter state ─────────────────────────────────────────
 function categorizeParcel(props) {
@@ -1193,9 +974,10 @@ const PERMIT_COLORS = {
   no_application:     '#E24B4A',
 };
 const INTENT_COLORS = {
-  rebuild:   '#1D9E75',
-  undecided: '#BA7517',
-  sold:      '#E24B4A',
+  rebuild:        '#1D9E75',
+  undecided:      '#BA7517',
+  sold_individual:'#E8A838',
+  sold_developer: '#E24B4A',
 };
 const NULL_COLOR       = '#888780';
 const INDIV_COLOR      = '#1D9E75';
@@ -1287,7 +1069,7 @@ function augment(props) {
   const s   = seed(apn);
   const iv  = s % 10;
   props.permit_status    = PERMIT_MAP[s % 5];
-  props.intent           = iv <= 1 ? null : iv <= 6 ? 'rebuild' : iv <= 8 ? 'undecided' : 'sold';
+  props.intent           = iv <= 1 ? null : iv <= 6 ? 'rebuild' : iv === 7 ? 'undecided' : iv === 8 ? 'sold_individual' : 'sold_developer';
   const ot               = (s >>> 3) % 10;
   props.owner_type       = ot <= 5 ? 'individual' : ot <= 7 ? 'sold_individual' : 'sold_developer';
   props.residence_type   = (s % 3) === 0 ? 'second_home' : 'primary';
@@ -1723,16 +1505,18 @@ function updateGlobalStats() {
     }
 
     case 'intent': {
-      const rebuild   = res.filter(p => p.intent === 'rebuild').length;
-      const undecided = res.filter(p => p.intent === 'undecided').length;
-      const sold      = res.filter(p => p.intent === 'sold').length;
-      const nullI     = res.filter(p => p.intent === null).length;
+      const rebuild     = res.filter(p => p.intent === 'rebuild').length;
+      const undecided   = res.filter(p => p.intent === 'undecided').length;
+      const soldIndiv   = res.filter(p => p.intent === 'sold_individual').length;
+      const soldDev     = res.filter(p => p.intent === 'sold_developer').length;
+      const soldDevPct  = pct(soldDev, n);
       setStats([
         [pct(rebuild, n)   + '%', 'Planning to rebuild'],
         [pct(undecided, n) + '%', 'Undecided'],
-        [pct(sold, n)      + '%', 'Sold or not returning'],
-        [pct(nullI, n)     + '%', 'No declaration'],
+        [pct(soldIndiv, n) + '%', 'Selling to individual'],
+        [soldDevPct        + '%', 'Selling to developer'],
       ]);
+      if (soldDevPct >= 20) document.getElementById('s4').style.color = '#E24B4A';
       break;
     }
 
@@ -1777,12 +1561,12 @@ function updateNeighborhoodStats() {
     case 'permit': {
       const withApp = nearby.filter(p => p.permit_status !== 'no_application').length;
       const inConst = nearby.filter(p => p.permit_status === 'under_construction').length;
-      const done    = nearby.filter(p => p.permit_status === 'complete').length;
+      const matSub  = nearby.filter(p => getMaterials(p.APN) !== null).length;
       setStats([
         [n,                                  'parcels nearby'],
         [`${withApp} (${pct(withApp, n)}%)`, 'permit applications'],
         [`${inConst} (${pct(inConst, n)}%)`, 'under construction'],
-        [`${done} (${pct(done, n)}%)`,       'complete'],
+        [`${matSub} of ${n}`,                'materials submitted'],
       ]);
       break;
     }
@@ -1790,13 +1574,13 @@ function updateNeighborhoodStats() {
     case 'intent': {
       const rebuild   = nearby.filter(p => p.intent === 'rebuild').length;
       const undecided = nearby.filter(p => p.intent === 'undecided').length;
-      const sold      = nearby.filter(p => p.intent === 'sold').length;
-      const other     = n - rebuild - undecided - sold;
+      const soldI     = nearby.filter(p => p.intent === 'sold_individual').length;
+      const soldD     = nearby.filter(p => p.intent === 'sold_developer').length;
       setStats([
-        [n,                                              'parcels nearby'],
-        [`${rebuild} (${pct(rebuild, n)}%)`,             'planning to rebuild'],
-        [`${undecided} (${pct(undecided, n)}%)`,         'undecided'],
-        [`${sold + other} (${pct(sold + other, n)}%)`,   'sold or no declaration'],
+        [n,                                          'parcels nearby'],
+        [`${rebuild} (${pct(rebuild, n)}%)`,         'Planning to rebuild'],
+        [`${undecided} (${pct(undecided, n)}%)`,     'Undecided'],
+        [`${soldI + soldD} (${pct(soldI + soldD, n)}%)`, 'Selling'],
       ]);
       break;
     }
@@ -1857,7 +1641,8 @@ const LEGEND_DEFS = {
     items: [
       ['#1D9E75', 'Planning to rebuild'],
       ['#BA7517', 'Undecided'],
-      ['#E24B4A', 'Sold / not returning'],
+      ['#E8A838', 'Selling — to individual/family'],
+      ['#E24B4A', 'Selling — to developer/LLC'],
       ['#888780', 'Not yet declared'],
     ],
   },
@@ -2051,8 +1836,14 @@ function permitBadge(status) {
 }
 
 function intentBadge(intent) {
-  const map = { rebuild: 'green', undecided: 'amber', sold: 'red' };
-  return badge(map[intent] || 'gray', fmt(intent));
+  const colorMap = { rebuild: 'green', undecided: 'amber', sold_individual: 'orange', sold_developer: 'red' };
+  const labelMap = {
+    rebuild:        'Planning to rebuild',
+    undecided:      'Undecided',
+    sold_individual:'Selling — to individual/family',
+    sold_developer: 'Selling — to developer/LLC',
+  };
+  return badge(colorMap[intent] || 'gray', labelMap[intent] || 'No declaration');
 }
 
 function insureBadge(v) {
@@ -2470,7 +2261,7 @@ document.getElementById('declare-form').addEventListener('submit', e => {
   // Confirmation copy
   const prefix = String(p.APN || '').substring(0, 4);
   const block  = allProps.filter(q => String(q.APN || '').startsWith(prefix));
-  const dec    = block.filter(q => q.intent === 'rebuild' || q.intent === 'sold').length;
+  const dec    = block.filter(q => ['rebuild','sold_individual','sold_developer'].includes(q.intent)).length;
   document.getElementById('confirm-msg').innerHTML =
     `Recorded. Your neighbors can see that <strong>${dec}</strong> of ` +
     `<strong>${block.length}</strong> parcels on your block have declared intentions.`;
@@ -2737,12 +2528,49 @@ function openSchoolSidebar(props) {
 
 // ─── Building materials helpers ──────────────────────────────────────────────
 function getMaterials(apn) {
-  return MATERIALS_DATA[String(apn || '')] || null;
+  const key = String(apn || '');
+  if (MATERIALS_DATA[key]) return MATERIALS_DATA[key];
+
+  const s = seed(key);
+  if (s % 2 !== 0) return null;
+
+  const STRUCTURES  = ['Concrete / ICF', 'Concrete / ICF', 'Wood frame with fire-rated assemblies', 'Steel frame', 'Wood frame with fire-rated assemblies'];
+  const ROOFS       = ['Metal', 'Metal', 'Tile', 'Class A asphalt shingles'];
+  const WALLS       = ['Fiber cement (HardiePlank)', 'Stucco', 'Concrete panels'];
+  const WINDOWS     = ['Dual-pane tempered glass', 'Dual-pane tempered glass', 'Triple-pane'];
+  const FRAMES      = ['Aluminum-clad', 'Fiberglass', 'Aluminum-clad'];
+  const SUPPRESSION = [
+    ['Interior sprinklers (NFPA 13D)'],
+    ['Interior sprinklers (NFPA 13D)'],
+    ['Interior sprinklers (NFPA 13D)', 'Exterior roof sprinklers'],
+    ['None planned'],
+  ];
+  const DSPACE = [
+    ['All zones cleared'],
+    ['Zone 1 cleared (5-30 ft)'],
+    ['Zone 2 cleared (30-100 ft)'],
+  ];
+
+  const base = new Date('2025-02-01');
+  base.setDate(base.getDate() + (s % 450));
+  const dateStr = base.toISOString().slice(0, 10);
+
+  return {
+    submitted_date:   dateStr,
+    structure:        STRUCTURES[s % 5],
+    roof:             ROOFS[s % 4],
+    exterior_walls:   WALLS[s % 3],
+    windows:          WINDOWS[s % 3],
+    window_frames:    FRAMES[s % 3],
+    suppression:      SUPPRESSION[s % 4],
+    defensible_space: DSPACE[s % 3],
+    notes: '',
+  };
 }
 
 function renderMaterialsSection(props) {
   const mat = getMaterials(props.APN);
-  const canAdd = props.intent === 'rebuild';
+  const canAdd = props.intent === 'rebuild' || props.intent === 'undecided';
 
   if (mat) {
     const fmtList = v => Array.isArray(v) ? v.join(', ') : (v || '—');
